@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+# Dados reais da empresa nunca vão para o repositório
+*.xlsx
+*.xls
+database/04_filiais.sql
