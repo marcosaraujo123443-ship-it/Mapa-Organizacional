@@ -6,8 +6,8 @@ import { memo } from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 
 export const GRUPO_W = 260, GRUPO_H = 88;
-export const EMPRESA_W = 240, EMPRESA_H = 76;
-export const AREA_W = 270, AREA_H = 68;
+export const EMPRESA_W = 260, EMPRESA_H = 76;
+export const AREA_W = 290, AREA_H = 68;
 
 const fmt = (n: number) => n.toLocaleString('pt-BR');
 const plural = (n: number, um: string, varios: string) => `${fmt(n)} ${n === 1 ? um : varios}`;
@@ -26,8 +26,20 @@ const Seta = ({ aberto, claro }: { aberto: boolean; claro?: boolean }) => (
 );
 
 export type GrupoData = { nome: string; empresas: number; quadro: number; aberto: boolean };
-export type EmpresaData = { nome: string; quadro: number; cargos: number; aberto: boolean; carregando: boolean };
-export type AreaData = { nome: string; quadro: number; cargos: number; aberto: boolean; onNovoCargo: () => void };
+export type EmpresaData = { nome: string; quadro: number; cargos: number; aberto: boolean; carregando: boolean; onNovaArea: () => void };
+export type AreaData = { nome: string; quadro: number; cargos: number; aberto: boolean; onNovoCargo: () => void; onEditar: () => void };
+
+/** Botão pequeno dentro de um nó; não abre/fecha o nó ao ser clicado. */
+const BotaoNo = ({ rotulo, onClick, children, cor }: { rotulo: string; onClick: () => void; children: string; cor: string }) => (
+  <button
+    onClick={(e) => { e.stopPropagation(); onClick(); }}
+    title={rotulo}
+    aria-label={rotulo}
+    className={`nodrag flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold ring-1 ${cor}`}
+  >
+    {children}
+  </button>
+);
 
 export const GrupoNode = memo(({ data }: NodeProps<Node<GrupoData, 'grupo'>>) => (
   <div style={{ width: GRUPO_W, height: GRUPO_H }} className="flex cursor-pointer items-center gap-3 rounded-2xl bg-indigo-900 px-4 text-white shadow-lg ring-1 ring-indigo-950 hover:bg-indigo-800">
@@ -49,6 +61,7 @@ export const EmpresaNode = memo(({ data }: NodeProps<Node<EmpresaData, 'empresa'
       <p className="truncate text-sm font-semibold text-slate-900">{data.nome}</p>
       <p className="text-[11px] text-slate-500">{plural(data.quadro, 'pessoa', 'pessoas')} · {plural(data.cargos, 'função', 'funções')}</p>
     </div>
+    <BotaoNo rotulo="Adicionar área nesta empresa" onClick={data.onNovaArea} cor="text-indigo-700 ring-indigo-200 hover:bg-indigo-50">+</BotaoNo>
     {data.carregando ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600" /> : <Seta aberto={data.aberto} />}
     <Saida />
   </div>
@@ -62,15 +75,8 @@ export const AreaNode = memo(({ data }: NodeProps<Node<AreaData, 'area'>>) => (
       <p className="truncate text-sm font-semibold text-slate-900">{data.nome}</p>
       <p className="text-[11px] text-slate-500">{plural(data.quadro, 'pessoa', 'pessoas')} · {plural(data.cargos, 'função', 'funções')}</p>
     </div>
-    {/* stopPropagation: o "+" cria cargo nesta área sem abrir/fechar o nó */}
-    <button
-      onClick={(e) => { e.stopPropagation(); data.onNovoCargo(); }}
-      title="Adicionar cargo nesta área"
-      aria-label="Adicionar cargo nesta área"
-      className="nodrag flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-base font-semibold text-teal-700 ring-1 ring-teal-200 hover:bg-teal-50"
-    >
-      +
-    </button>
+    <BotaoNo rotulo="Renomear ou excluir área" onClick={data.onEditar} cor="text-slate-500 ring-slate-200 hover:bg-slate-100">✎</BotaoNo>
+    <BotaoNo rotulo="Adicionar cargo nesta área" onClick={data.onNovoCargo} cor="text-teal-700 ring-teal-200 hover:bg-teal-50">+</BotaoNo>
     <Seta aberto={data.aberto} />
     <Saida />
   </div>

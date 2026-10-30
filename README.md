@@ -43,7 +43,7 @@ python scripts/importar_quadro.py QUADRO.xlsx > database/04_filiais.sql
 psql -d mapeamento -f database/04_filiais.sql
 ```
 
-O script cria uma **empresa por filial**, todas no grupo informado (padrão `"Grupo JC"`, que é a raiz da árvore no app), (a lista vem da aba `FILIAIS`) e, dentro de cada uma, os departamentos e os cargos, com a quantidade de pessoas (`quadro`) e a quem cada cargo reporta. O superior é descoberto pelas colunas *líder imediato / gerente 1 / gerente 2*. Quando a planilha não indica ninguém da mesma filial, o cargo passa a reportar ao gestor do próprio departamento. As regras que decidem em qual filial cada linha entra ficam no topo do script, em `REGRAS_SECAO`, `REGRAS_PALAVRA` e `REGRAS_CODIGO`.
+O script cria uma **empresa por filial**, todas no grupo informado (padrão `"Grupo JC"`, que é a raiz da árvore no app), (a lista vem da aba `FILIAIS`) e, dentro de cada uma, os departamentos e os cargos, com a quantidade de pessoas (`quadro`) e a quem cada cargo reporta. O superior é descoberto pelas colunas *líder imediato / gerente 1 / gerente 2*. Quando a planilha não indica ninguém da mesma filial, o cargo passa a reportar ao gestor do próprio departamento. As regras que decidem em qual filial cada linha entra ficam no topo do script, em `REGRAS_SECAO`, `REGRAS_PALAVRA` e `REGRAS_CODIGO`. Em `CENTRO_DEFINE_DEPTO` ficam os centros gerenciais que mandam no departamento mesmo quando a coluna *departamento* diz outra coisa (ex.: quem está no centro INFORMATICA vai para a área Informática, ainda que a planilha marque TRANSPORTE).
 
 O SQL gerado **não tem dados pessoais** (nomes, nascimento, idade, sexo). Mesmo assim, a planilha e o `04_filiais.sql` estão no `.gitignore`: a estrutura da empresa não deve ir para um repositório público.
 O schema usa as extensões `pg_trgm` e `unaccent` (vêm no pacote padrão do PostgreSQL).
@@ -58,6 +58,9 @@ O schema usa as extensões `pg_trgm` e `unaccent` (vêm no pacote padrão do Pos
 | GET    | `/pops/{id}`                 | POP completo (markdown, checklist, anexos) |
 | GET    | `/busca?q={termo}&limite=30&empresa_id=` | Busca global (com `empresa_id`, só naquela filial) em cargos, entregáveis/KPIs, atividades e POPs (sem acento, sem maiúsculas, com trecho do POP onde o termo aparece) |
 | GET    | `/departamentos?empresa_id=1`| Lista de departamentos (usada nos formulários) |
+| POST   | `/departamentos`             | Cria área: `{ empresa_id, nome }` (nome único na empresa) |
+| PATCH  | `/departamentos/{id}`        | Renomeia a área (`{ "nome": "..." }`) |
+| DELETE | `/departamentos/{id}`        | Exclui a área. Se ela tiver cargos, informe `?mover_para={id da outra área}` ou `?excluir_cargos=1` (sem isso responde 400) |
 | POST   | `/cargos`                    | Cria cargo: `{ departamento_id, titulo, nivel, cbo?, cargo_superior_id?, quadro? }` |
 | PATCH  | `/cargos/{id}`               | Edita qualquer campo acima. Bloqueia reportar para um subordinado (ciclo) |
 | POST   | `/entregaveis`               | Cria entregável: `{ cargo_id, titulo, frequencia, kpi_meta? }` |
@@ -88,11 +91,12 @@ curl "localhost:3333/api/v1/busca?q=divergencia"
 ## Frontend
 
 - `components/OrgChart.tsx`: organograma em **árvore que abre por cliques**, da esquerda para a direita (React Flow + dagre): **Grupo › Empresas › Áreas › Funções (cargos)**. Só os níveis abertos são desenhados, e cada empresa é carregada da API quando é aberta. Dentro de uma área, os cargos seguem a hierarquia entre eles. A busca abre a árvore até o cargo encontrado.
-- `components/TreeNodes.tsx`: cards do grupo, da empresa e da área, com totais de pessoas e funções. O "+" da área cria um cargo direto nela.
+- `components/TreeNodes.tsx`: cards do grupo, da empresa e da área, com totais de pessoas e funções. O "+" da empresa cria uma área nova, o "+" da área cria um cargo direto nela e o ✎ da área renomeia ou exclui.
 - `components/CargoCard.tsx`: nó customizado (departamento, título, nível, CBO, qtd. de KPIs).
 - `components/CargoDrawer.tsx`: gaveta de drill-down com as abas *Visão geral*, *Entregáveis*, *Atividades (RACI)* e *Participações*. No desktop fica à direita, com o organograma navegável ao fundo; no celular vira um *bottom sheet*.
 - `components/RaciTable.tsx`: cartão de atividade com R/A/C/I. Cada cargo citado é clicável e navega até ele.
 - `components/PopModal.tsx`: passo a passo em Markdown (com tabelas), checklist interativo com progresso salvo no aparelho e anexos. É carregado sob demanda.
+- `components/AreaForm.tsx`: modal para **criar, renomear ou excluir área**. Ao excluir uma área com cargos, pergunta se eles vão para outra área da empresa ou se são excluídos junto.
 - `components/CargoForm.tsx`: modal para **adicionar** ou **editar** um cargo (nome, departamento, nível, CBO e a quem reporta). Aberto pelo botão "+ Adicionar cargo" no topo ou por "✎ Editar" no drawer.
 - `components/Edicao.tsx`: formulários dentro do drawer para **adicionar função** (atividade, com R e A), **renomear função** (ícone ✎ ao lado do nome), **adicionar entregável** e **excluir** cargo, entregável ou função (🗑, com confirmação que diz o que será apagado junto).
 - `components/SearchBar.tsx`: busca com debounce, destaque do termo e navegação por teclado (`/` foca a busca). Ao escolher um resultado, o drawer abre direto na camada certa (cargo, entregável, atividade ou POP).

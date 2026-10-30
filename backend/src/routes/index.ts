@@ -51,7 +51,7 @@ router.get('/busca', h(async (req, res) => {
 }));
 
 // ---------------------------------------------------------------------------
-// Escrita: criar, editar e excluir cargos, entregáveis e funções (atividades)
+// Escrita: criar, editar e excluir departamentos, cargos, entregáveis e funções (atividades)
 // ---------------------------------------------------------------------------
 
 router.get('/departamentos', h(async (req, res) => {
@@ -60,7 +60,7 @@ router.get('/departamentos', h(async (req, res) => {
   res.json(await listarDepartamentos(empresaId));
 }));
 
-const TABELAS = { cargos: 'cargos', entregaveis: 'entregaveis', atividades: 'atividades' } as const;
+const TABELAS = { departamentos: 'departamentos', cargos: 'cargos', entregaveis: 'entregaveis', atividades: 'atividades' } as const;
 
 for (const [rota, tabela] of Object.entries(TABELAS)) {
   router.post(`/${rota}`, h(async (req, res) => {
@@ -88,7 +88,14 @@ for (const [rota, tabela] of Object.entries(TABELAS)) {
   router.delete(`/${rota}/:id`, h(async (req, res) => {
     const id = idParam(req.params.id);
     if (!id) return res.status(400).json({ erro: 'id inválido' });
-    if (!(await excluir(tabela, id))) return res.status(404).json({ erro: 'Registro não encontrado' });
+    // Só para departamentos: ?mover_para=ID ou ?excluir_cargos=1
+    const opcoes = { moverPara: idParam(req.query.mover_para), excluirCargos: req.query.excluir_cargos === '1' };
+    try {
+      if (!(await excluir(tabela, id, opcoes))) return res.status(404).json({ erro: 'Registro não encontrado' });
+    } catch (e) {
+      if (e instanceof ErroValidacao) return res.status(400).json({ erro: e.message });
+      throw e;
+    }
     res.status(204).end();
   }));
 }

@@ -14,7 +14,7 @@ Os nomes de líderes/gerentes são usados só em memória para descobrir a qual
 cargo cada cargo reporta.
 
 Colunas usadas da aba QUADRO: coligada, filial, descrição seção, departamento,
-função4, nome cargo, nome2, lider imediato, gerente 1, gerente 2.
+nome gerencial, função4, nome cargo, nome2, lider imediato, gerente 1, gerente 2.
 A aba FILIAIS dá a lista e a ordem das filiais.
 """
 import collections
@@ -68,12 +68,16 @@ def filial_da_linha(r) -> str:
 # 2. Departamento: tira o sufixo de local ("CD PARÁ" -> "CD") e unifica grafias
 # ---------------------------------------------------------------------------
 SUFIXOS_LOCAL = [' PARA', ' - BA', ' FILIAIS']
+# Centro gerencial que manda mais que a coluna "departamento" (ex.: o TI do PA vem
+# com departamento TRANSPORTE, mas o centro gerencial é INFORMATICA)
+CENTRO_DEFINE_DEPTO = {'INFORMATICA': 'INFORMÁTICA'}
 SINONIMOS = {'TRANSPORTES': 'TRANSPORTE', 'MANUTENCAO': 'MANUTENÇÃO', 'CDA': 'CD'}
 NOMES_DEPTO = {'CD': 'CD (Centro de Distribuição)', 'RH': 'RH', 'TRANSPORTE': 'Transporte'}
 
 
 def departamento_da_linha(r) -> str:
-    bruto = (r['departamento'] or 'SEM DEPARTAMENTO').strip()
+    centro = sem_acento((r.get('nome gerencial') or '').strip())
+    bruto = CENTRO_DEFINE_DEPTO.get(centro) or (r['departamento'] or 'SEM DEPARTAMENTO').strip()
     chave = sem_acento(bruto)
     for suf in SUFIXOS_LOCAL:
         if chave.endswith(suf):

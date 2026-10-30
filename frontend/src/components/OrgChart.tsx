@@ -34,6 +34,8 @@ interface Props {
   onToggleArea: (id: number) => void;
   onSelectCargo: (id: number) => void;
   onNovoCargo: (empresaId: number, departamentoId: number) => void;
+  onNovaArea: (empresaId: number) => void;
+  onEditarArea: (empresaId: number, departamentoId: number) => void;
 }
 
 const edge = (source: string, target: string): Edge => ({
@@ -64,12 +66,13 @@ export function OrgChart(p: Props) {
         const eid = `e:${emp.id}`;
         const org = p.organogramas.get(emp.id);
         const empAberta = p.abertos.empresas.has(emp.id) && !!org;
-        nodes.push({ id: eid, type: 'empresa', position: { x: 0, y: 0 }, data: { nome: emp.nome, quadro: emp.quadro, cargos: emp.qtd_cargos, aberto: empAberta, carregando: p.carregando.has(emp.id) } });
+        nodes.push({ id: eid, type: 'empresa', position: { x: 0, y: 0 }, data: { nome: emp.nome, quadro: emp.quadro, cargos: emp.qtd_cargos, aberto: empAberta, carregando: p.carregando.has(emp.id), onNovaArea: () => p.onNovaArea(emp.id) } });
         edges.push(edge(gid, eid));
         if (!empAberta) continue;
 
-        // Áreas = departamentos com cargos, em ordem alfabética
+        // Áreas = todos os departamentos da empresa (inclusive vazios), em ordem alfabética
         const areas = new Map<number, { nome: string; cargos: Organograma['nodes'] }>();
+        org.departamentos?.forEach((d) => areas.set(d.id, { nome: d.nome, cargos: [] }));
         org.nodes.forEach((c) => {
           const a = areas.get(c.departamento_id) ?? { nome: c.departamento, cargos: [] };
           a.cargos.push(c);
@@ -82,7 +85,7 @@ export function OrgChart(p: Props) {
             id: aid, type: 'area', position: { x: 0, y: 0 },
             data: {
               nome: area.nome, cargos: area.cargos.length, quadro: area.cargos.reduce((n, c) => n + (c.quadro ?? 0), 0),
-              aberto: areaAberta, onNovoCargo: () => p.onNovoCargo(emp.id, did),
+              aberto: areaAberta, onNovoCargo: () => p.onNovoCargo(emp.id, did), onEditar: () => p.onEditarArea(emp.id, did),
             },
           });
           edges.push(edge(eid, aid));
@@ -120,7 +123,7 @@ export function OrgChart(p: Props) {
       n.draggable = false;
     });
     return { nodes, edges };
-  }, [p.empresas, p.organogramas, p.carregando, p.abertos, p.selecionadoId, p.destaqueIds, buscando, p.onNovoCargo]);
+  }, [p.empresas, p.organogramas, p.carregando, p.abertos, p.selecionadoId, p.destaqueIds, buscando, p.onNovoCargo, p.onNovaArea, p.onEditarArea]);
 
   // Centraliza o nó em foco (o que acabou de ser aberto ou selecionado)
   useEffect(() => {

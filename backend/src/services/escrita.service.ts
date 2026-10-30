@@ -1,5 +1,6 @@
 /**
- * Operações de escrita: criar e editar cargos, entregáveis e funções (atividades).
+ * Operações de escrita: criar, editar e excluir departamentos (áreas), cargos,
+ * entregáveis e funções (atividades).
  * Os campos aceitos em cada tabela são fixos (lista branca), então nenhum nome de
  * coluna vem do cliente direto para o SQL.
  */
@@ -17,7 +18,12 @@ type Campo = { tipo: 'texto'; max: number; obrigatorio?: boolean }
   | { tipo: 'inteiro' }
   | { tipo: 'ids' };
 
-const ESQUEMAS: Record<'cargos' | 'entregaveis' | 'atividades', Record<string, Campo>> = {
+const ESQUEMAS: Record<'departamentos' | 'cargos' | 'entregaveis' | 'atividades', Record<string, Campo>> = {
+  departamentos: {
+    empresa_id: { tipo: 'id', obrigatorio: true },
+    nome: { tipo: 'texto', max: 150, obrigatorio: true },
+    gestor_cargo_id: { tipo: 'id' },
+  },
   cargos: {
     departamento_id: { tipo: 'id', obrigatorio: true },
     titulo: { tipo: 'texto', max: 150, obrigatorio: true },
@@ -91,7 +97,7 @@ function validar(tabela: keyof typeof ESQUEMAS, corpo: Record<string, unknown>, 
 function traduzir(e: unknown): never {
   const err = e as { code?: string; constraint?: string };
   if (err.code === '23503') throw new ErroValidacao('Registro relacionado não existe (verifique departamento, cargo ou entregável).');
-  if (err.code === '23505') throw new ErroValidacao('Já existe um registro com esses dados.');
+  if (err.code === '23505') throw new ErroValidacao('Já existe um registro com esse nome.');
   if (err.code === '23514') throw new ErroValidacao('Valor não permitido (um cargo não pode ser superior de si mesmo).');
   throw e;
 }
@@ -129,6 +135,24 @@ async function impedirCiclo(cargoId: number, novoSuperiorId: number) {
   if (rows.length) throw new ErroValidacao('O superior escolhido é subordinado deste cargo.');
 }
 
+/** Exclui um cargo: a equipe direta sobe para o superior dele e o cargo sai das listas C/I. */
+async function excluirCargoNaTransacao(cliente: import('pg').PoolClient, id: number): Promise<boolean> {
+  await cliente.query(
+    `UPDATE cargos SET cargo_superior_id = (SELECT cargo_superior_id FROM cargos WHERE id = $1)
+      WHERE cargo_superior_id = $1`,
+    [id],
+  );
+  await cliente.query(
+    `UPDATE atividades
+        SET raci_consultado = array_remove(raci_consultado, $1),
+            raci_informado  = array_remove(raci_informado, $1)
+      WHERE $1 = ANY(raci_consultado) OR $1 = ANY(raci_informado)`,
+    [id],
+  );
+  const { rowCount } = await cliente.query('DELETE FROM cargos WHERE id = $1', [id]);
+  return (rowCount ?? 0) > 0;
+}
+
 export async function listarDepartamentos(empresaId: number) {
   const { rows } = await pool.query('SELECT id, nome FROM departamentos WHERE empresa_id = $1 ORDER BY nome', [empresaId]);
   return rows;
@@ -136,32 +160,44 @@ export async function listarDepartamentos(empresaId: number) {
 
 /**
  * Exclusões. Entregáveis, funções e POPs dependentes saem junto (ON DELETE CASCADE).
+ * Ao excluir um departamento com cargos, é preciso dizer o destino deles:
+ *  - moverPara: os cargos passam para outro departamento da mesma empresa;
+ *  - excluirCargos: os cargos (e tudo abaixo deles) são excluídos junto.
+ * Sem nenhuma das opções, um departamento com cargos não é excluído.
  * Ao excluir um cargo:
  *  - seus subordinados passam a reportar para o superior dele (o organograma não "quebra");
  *  - ele é removido das listas de Consultado/Informado das funções de outros cargos
  *    (R e A já viram NULL pela FK ON DELETE SET NULL).
  */
-export async function excluir(tabela: keyof typeof ESQUEMAS, id: number): Promise<boolean> {
+export interface OpcoesExclusao { moverPara?: number | null; excluirCargos?: boolean }
+
+export async function excluir(tabela: keyof typeof ESQUEMAS, id: number, opcoes: OpcoesExclusao = {}): Promise<boolean> {
   const cliente = await pool.connect();
   try {
     await cliente.query('BEGIN');
-    if (tabela === 'cargos') {
-      await cliente.query(
-        `UPDATE cargos SET cargo_superior_id = (SELECT cargo_superior_id FROM cargos WHERE id = $1)
-          WHERE cargo_superior_id = $1`,
+    if (tabela === 'departamentos') {
+      const { rows } = await cliente.query(
+        'SELECT empresa_id, (SELECT count(*)::int FROM cargos WHERE departamento_id = $1) AS qtd FROM departamentos WHERE id = $1',
         [id],
       );
-      await cliente.query(
-        `UPDATE atividades
-            SET raci_consultado = array_remove(raci_consultado, $1),
-                raci_informado  = array_remove(raci_informado, $1)
-          WHERE $1 = ANY(raci_consultado) OR $1 = ANY(raci_informado)`,
-        [id],
-      );
+      if (!rows.length) { await cliente.query('ROLLBACK'); return false; }
+      const { empresa_id, qtd } = rows[0];
+      if (qtd > 0 && opcoes.moverPara) {
+        const destino = await cliente.query('SELECT 1 FROM departamentos WHERE id = $1 AND empresa_id = $2 AND id <> $3', [opcoes.moverPara, empresa_id, id]);
+        if (!destino.rowCount) throw new ErroValidacao('O departamento de destino precisa ser outro departamento da mesma empresa.');
+        await cliente.query('UPDATE cargos SET departamento_id = $1 WHERE departamento_id = $2', [opcoes.moverPara, id]);
+      } else if (qtd > 0 && opcoes.excluirCargos) {
+        const { rows: cs } = await cliente.query('SELECT id FROM cargos WHERE departamento_id = $1', [id]);
+        for (const c of cs) await excluirCargoNaTransacao(cliente, c.id);
+      } else if (qtd > 0) {
+        throw new ErroValidacao(`Este departamento tem ${qtd} cargo(s). Escolha para onde movê-los ou marque para excluí-los junto.`);
+      }
     }
-    const { rowCount } = await cliente.query(`DELETE FROM ${tabela} WHERE id = $1`, [id]);
+    const ok = tabela === 'cargos'
+      ? await excluirCargoNaTransacao(cliente, id)
+      : ((await cliente.query(`DELETE FROM ${tabela} WHERE id = $1`, [id])).rowCount ?? 0) > 0;
     await cliente.query('COMMIT');
-    return (rowCount ?? 0) > 0;
+    return ok;
   } catch (e) {
     await cliente.query('ROLLBACK');
     throw e;

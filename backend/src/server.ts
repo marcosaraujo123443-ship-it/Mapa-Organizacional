@@ -5,7 +5,8 @@
  *   GET /api/v1/cargos/:id/hierarquia        -> árvore completa Cargo > Entregável > Atividade > POP
  *   GET /api/v1/pops/:id                     -> POP individual
  *   GET /api/v1/busca?q=termo[&empresa_id=1] -> busca global (ou só de uma filial)
- *   POST/PATCH/DELETE /api/v1/cargos | /entregaveis | /atividades  -> criar, editar e excluir
+ *   POST/PATCH/DELETE /api/v1/departamentos | /cargos | /entregaveis | /atividades  -> criar, editar e excluir
+ *     (DELETE de departamento com cargos: ?mover_para=ID ou ?excluir_cargos=1)
  *   GET /api/v1/departamentos?empresa_id=1   -> lista para formulários
  */
 import express from 'express';

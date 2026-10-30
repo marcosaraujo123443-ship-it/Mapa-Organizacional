@@ -128,7 +128,10 @@ export async function getOrganograma(empresaId: number) {
       ORDER BY c.id`,
     [empresaId],
   );
+  // Departamentos entram mesmo sem cargos, para a árvore mostrar áreas recém-criadas
+  const deptos = await pool.query('SELECT id, nome FROM departamentos WHERE empresa_id = $1 ORDER BY nome', [empresaId]);
   return {
+    departamentos: deptos.rows,
     nodes: rows,
     edges: rows
       .filter((r) => r.cargo_superior_id)

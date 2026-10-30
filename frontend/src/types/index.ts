@@ -18,6 +18,7 @@ export type OrgNode = {
 };
 
 export interface Organograma {
+  departamentos?: { id: number; nome: string }[];   // todas as áreas, inclusive vazias
   nodes: OrgNode[];
   edges: { id: string; source: string; target: string }[];
 }

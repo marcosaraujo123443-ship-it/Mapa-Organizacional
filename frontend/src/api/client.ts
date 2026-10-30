@@ -42,6 +42,11 @@ export const api = {
       `/busca?q=${encodeURIComponent(q)}${empresaId ? `&empresa_id=${empresaId}` : ''}`, signal),
   departamentos: (empresaId = 1) => get<Departamento[]>(`/departamentos?empresa_id=${empresaId}`),
 
+  criarDepartamento: (empresaId: number, nome: string) => enviar<Departamento>('POST', '/departamentos', { empresa_id: empresaId, nome }),
+  editarDepartamento: (id: number, nome: string) => enviar<Departamento>('PATCH', `/departamentos/${id}`, { nome }),
+  /** Com cargos, informe `moverPara` (outra área) ou `excluirCargos: true`. */
+  excluirDepartamento: (id: number, o: { moverPara?: number; excluirCargos?: boolean } = {}) =>
+    excluir(`/departamentos/${id}${o.moverPara ? `?mover_para=${o.moverPara}` : o.excluirCargos ? '?excluir_cargos=1' : ''}`),
   criarCargo: (c: NovoCargo) => enviar<CargoRef>('POST', '/cargos', c),
   editarCargo: (id: number, c: Partial<NovoCargo>) => enviar<CargoRef>('PATCH', `/cargos/${id}`, c),
   criarEntregavel: (e: NovoEntregavel) => enviar<Pick<Entregavel, 'id' | 'titulo'>>('POST', '/entregaveis', e),

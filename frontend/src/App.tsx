@@ -11,12 +11,14 @@ import { OrgChart, type Abertos } from './components/OrgChart';
 import { SearchBar } from './components/SearchBar';
 import { CargoDrawer, type Aba } from './components/CargoDrawer';
 import { CargoForm } from './components/CargoForm';
+import { AreaForm } from './components/AreaForm';
 
 // O modal do POP (com o renderizador de Markdown) só é baixado quando aberto
 const PopModal = lazy(() => import('./components/PopModal').then((m) => ({ default: m.PopModal })));
 
 interface Selecao { cargoId: number; aba: Aba; atividadeId: number | null }
 interface FormCargo { empresaId: number; cargo?: OrgNode; departamentoInicial?: number; departamentos: Departamento[] }
+interface FormArea { empresaId: number; area?: Departamento & { qtdCargos: number } }
 
 /** Cria uma cópia do conjunto com `v` incluído (ou removido, se `remover`). */
 const comItem = <T,>(s: Set<T>, v: T, remover = false) => {
@@ -37,6 +39,7 @@ export default function App() {
   const [destaques, setDestaques] = useState<Set<number>>(new Set());
   const [online, setOnline] = useState(navigator.onLine);
   const [formCargo, setFormCargo] = useState<FormCargo | null>(null);
+  const [formArea, setFormArea] = useState<FormArea | null>(null);
   const [versaoDados, setVersaoDados] = useState(0);
   const ultimaEmpresa = useRef<number | null>(null);   // para o botão "+ Adicionar cargo"
 
@@ -146,6 +149,32 @@ export default function App() {
     abrirFormCargo(empresaId, { departamentoInicial: departamentoId });
   }, [abrirFormCargo]);
 
+  // --- formulário de área ----------------------------------------------------
+  const novaArea = useCallback((empresaId: number) => setFormArea({ empresaId }), []);
+
+  const editarArea = useCallback((empresaId: number, departamentoId: number) => {
+    const org = organogramas.get(empresaId);
+    const nome = org?.departamentos?.find((d) => d.id === departamentoId)?.nome
+      ?? org?.nodes.find((n) => n.departamento_id === departamentoId)?.departamento ?? '';
+    const qtdCargos = org?.nodes.filter((n) => n.departamento_id === departamentoId).length ?? 0;
+    setFormArea({ empresaId, area: { id: departamentoId, nome, qtdCargos } });
+  }, [organogramas]);
+
+  /** Depois de criar/editar/excluir área: recarrega a empresa e mantém-na aberta. */
+  const aposArea = async (empresaId: number, abrirArea?: number) => {
+    setFormArea(null);
+    await carregarOrganograma(empresaId);
+    carregarEmpresas();
+    setVersaoDados((v) => v + 1);
+    const grupo = empresas.find((e) => e.id === empresaId)?.grupo;
+    setAbertos((a) => ({
+      grupos: grupo ? comItem(a.grupos, grupo) : a.grupos,
+      empresas: comItem(a.empresas, empresaId),
+      areas: abrirArea ? comItem(a.areas, abrirArea) : a.areas,
+    }));
+    setFoco(abrirArea ? `a:${abrirArea}` : `e:${empresaId}`);
+  };
+
   const novoCargo = () => {
     const id = empresaSel ?? ultimaEmpresa.current ?? empresas[0]?.id;
     if (id) abrirFormCargo(id);
@@ -197,6 +226,8 @@ export default function App() {
               onToggleArea={toggleArea}
               onSelectCargo={selecionarCargo}
               onNovoCargo={novoCargoNaArea}
+              onNovaArea={novaArea}
+              onEditarArea={editarArea}
             />
           </ReactFlowProvider>
         )}
@@ -244,6 +275,20 @@ export default function App() {
               }));
             }
             selecionarCargo(id);
+          }}
+        />
+      )}
+      {formArea && (
+        <AreaForm
+          empresaId={formArea.empresaId}
+          empresaNome={empresas.find((e) => e.id === formArea.empresaId)?.nome ?? ''}
+          area={formArea.area}
+          outrasAreas={(organogramas.get(formArea.empresaId)?.departamentos ?? []).filter((d) => d.id !== formArea.area?.id)}
+          onClose={() => setFormArea(null)}
+          onSalvo={(id) => aposArea(formArea.empresaId, id)}
+          onExcluido={() => {
+            if (sel && organogramas.get(formArea.empresaId)?.nodes.some((n) => n.id === sel.cargoId && n.departamento_id === formArea.area?.id)) setSel(null);
+            aposArea(formArea.empresaId);
           }}
         />
       )}
