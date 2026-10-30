@@ -43,6 +43,15 @@ O schema usa as extensões `pg_trgm` e `unaccent` (vêm no pacote padrão do Pos
 | GET    | `/cargos/{id}/hierarquia`    | Árvore completa do cargo: empresa, departamento, cadeia de superiores (CTE recursiva), subordinados (CTE recursiva), entregáveis → atividades com RACI resolvida → POPs, e participações do cargo na RACI de outros cargos |
 | GET    | `/pops/{id}`                 | POP completo (markdown, checklist, anexos) |
 | GET    | `/busca?q={termo}&limite=30` | Busca global em cargos, entregáveis/KPIs, atividades e POPs (sem acento, sem maiúsculas, com trecho do POP onde o termo aparece) |
+| GET    | `/departamentos?empresa_id=1`| Lista de departamentos (usada nos formulários) |
+| POST   | `/cargos`                    | Cria cargo: `{ departamento_id, titulo, nivel, cbo?, cargo_superior_id? }` |
+| PATCH  | `/cargos/{id}`               | Edita qualquer campo acima. Bloqueia reportar para um subordinado (ciclo) |
+| POST   | `/entregaveis`               | Cria entregável: `{ cargo_id, titulo, frequencia, kpi_meta? }` |
+| PATCH  | `/entregaveis/{id}`          | Edita entregável |
+| POST   | `/atividades`                | Cria função: `{ entregavel_id, nome, tempo_estimado?: "HH:MM", raci_responsavel_id?, raci_aprovador_id?, raci_consultado?: [ids], raci_informado?: [ids] }` |
+| PATCH  | `/atividades/{id}`           | Edita função (ex.: `{ "nome": "Novo nome" }`) |
+
+Erros de validação voltam como `400 { "erro": "mensagem" }`.
 
 Exemplos com os dados fictícios:
 
@@ -66,6 +75,8 @@ curl "localhost:3333/api/v1/busca?q=divergencia"
 - `components/CargoDrawer.tsx`: gaveta de drill-down com as abas *Visão geral*, *Entregáveis*, *Atividades (RACI)* e *Participações*. No desktop fica à direita, com o organograma navegável ao fundo; no celular vira um *bottom sheet*.
 - `components/RaciTable.tsx`: cartão de atividade com R/A/C/I. Cada cargo citado é clicável e navega até ele.
 - `components/PopModal.tsx`: passo a passo em Markdown (com tabelas), checklist interativo com progresso salvo no aparelho e anexos. É carregado sob demanda.
+- `components/CargoForm.tsx`: modal para **adicionar** ou **editar** um cargo (nome, departamento, nível, CBO e a quem reporta). Aberto pelo botão "+ Adicionar cargo" no topo ou por "✎ Editar" no drawer.
+- `components/Edicao.tsx`: formulários dentro do drawer para **adicionar função** (atividade, com R e A), **renomear função** (ícone ✎ ao lado do nome) e **adicionar entregável**.
 - `components/SearchBar.tsx`: busca com debounce, destaque do termo e navegação por teclado (`/` foca a busca). Ao escolher um resultado, o drawer abre direto na camada certa (cargo, entregável, atividade ou POP).
 
 ## PWA
@@ -78,6 +89,6 @@ curl "localhost:3333/api/v1/busca?q=divergencia"
 ## Próximos passos sugeridos
 
 1. Autenticação (JWT/SSO) e multiempresa (filtrar por `empresa_id` do usuário).
-2. CRUD de cargos, entregáveis, atividades e POPs (rotas POST/PUT/DELETE com validação via `zod`).
+2. Exclusão de cargos/funções, edição de POPs e da matriz C/I pela interface.
 3. Upload de anexos (S3/MinIO) e histórico/aprovação de versões de POP.
 4. Busca full-text com `tsvector` (dicionário `portuguese`) quando o volume de POPs crescer.

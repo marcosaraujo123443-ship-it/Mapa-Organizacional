@@ -84,3 +84,29 @@ export interface ResultadoBusca {
   atividade_id: number | null;
   score: number;
 }
+
+export interface Departamento { id: number; nome: string }
+
+/** Corpos aceitos pelas rotas de escrita. */
+export interface NovoCargo {
+  departamento_id: number;
+  titulo: string;
+  cbo?: string | null;
+  nivel: Nivel;
+  cargo_superior_id?: number | null;
+}
+
+export interface NovoEntregavel {
+  cargo_id: number;
+  titulo: string;
+  kpi_meta?: string | null;
+  frequencia: string;
+}
+
+export interface NovaAtividade {
+  entregavel_id: number;
+  nome: string;
+  tempo_estimado?: string | null;
+  raci_responsavel_id?: number | null;
+  raci_aprovador_id?: number | null;
+}

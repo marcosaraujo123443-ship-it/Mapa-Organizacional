@@ -3,10 +3,12 @@
  * - Desktop: painel à direita; o organograma continua visível e navegável ao fundo.
  * - Mobile: "bottom sheet" ocupando ~85% da altura.
  * Abas: Visão geral · Entregáveis/KPIs · Atividades (RACI) · Participações.
+ * Também permite editar o cargo, adicionar entregáveis e adicionar/renomear funções.
  */
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
-import type { HierarquiaCargo } from '../types';
+import type { CargoRef, HierarquiaCargo } from '../types';
+import { BotaoAdicionar, FREQUENCIAS, NovaFuncaoForm, NovoEntregavelForm } from './Edicao';
 import { NIVEL } from './nivel';
 import { AtividadeRaci, LegendaRaci } from './RaciTable';
 
@@ -19,10 +21,6 @@ const ABAS: { k: Aba; rotulo: string }[] = [
   { k: 'participacoes', rotulo: 'Participações' },
 ];
 
-const FREQ: Record<string, string> = {
-  diaria: 'Diária', semanal: 'Semanal', quinzenal: 'Quinzenal', mensal: 'Mensal',
-  trimestral: 'Trimestral', semestral: 'Semestral', anual: 'Anual', sob_demanda: 'Sob demanda',
-};
 
 interface Props {
   cargoId: number;
@@ -31,22 +29,54 @@ interface Props {
   onClose: () => void;
   onNavegarCargo: (id: number) => void;
   onAbrirPop: (popId: number) => void;
+  cargos: CargoRef[];               // opções de R/A ao adicionar função
+  versaoDados: number;              // muda quando o organograma é alterado fora do drawer
+  onEditarCargo: (id: number) => void;
+  onAlterado: () => void;           // avisa o App para recarregar o organograma
 }
 
-export function CargoDrawer({ cargoId, abaInicial = 'geral', atividadeFoco, onClose, onNavegarCargo, onAbrirPop }: Props) {
+export function CargoDrawer({
+  cargoId, abaInicial = 'geral', atividadeFoco, onClose, onNavegarCargo, onAbrirPop,
+  cargos, versaoDados, onEditarCargo, onAlterado,
+}: Props) {
   const [dados, setDados] = useState<HierarquiaCargo | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aba, setAba] = useState<Aba>(abaInicial);
+  const [recarga, setRecarga] = useState(0);
+  const [novaFuncaoEm, setNovaFuncaoEm] = useState<number | null>(null); // id do entregável
+  const [novoEntregavel, setNovoEntregavel] = useState(false);
 
-  useEffect(() => setAba(abaInicial), [abaInicial, cargoId]);
+  useEffect(() => {
+    setAba(abaInicial);
+    setNovaFuncaoEm(null);
+    setNovoEntregavel(false);
+  }, [abaInicial, cargoId]);
 
   useEffect(() => {
     let ativo = true;
-    setDados(null);
+    // Só mostra o "carregando" ao trocar de cargo; ao recarregar o mesmo cargo mantém a tela
+    setDados((d) => (d?.id === cargoId ? d : null));
     setErro(null);
     api.hierarquia(cargoId).then((d) => ativo && setDados(d)).catch((e) => ativo && setErro(String(e.message ?? e)));
     return () => { ativo = false; };
-  }, [cargoId]);
+  }, [cargoId, recarga, versaoDados]);
+
+  /** Depois de salvar: recarrega o drawer e o organograma. */
+  const aposSalvar = () => {
+    setRecarga((n) => n + 1);
+    onAlterado();
+  };
+
+  const criarFuncao = (entregavelId: number) => async (f: Parameters<Parameters<typeof NovaFuncaoForm>[0]['onCriar']>[0]) => {
+    await api.criarAtividade({ entregavel_id: entregavelId, ...f });
+    setNovaFuncaoEm(null);
+    aposSalvar();
+  };
+
+  const renomearFuncao = (atividadeId: number) => async (nome: string) => {
+    await api.editarAtividade(atividadeId, { nome });
+    aposSalvar();
+  };
 
   // Rola até a atividade destacada pela busca
   useEffect(() => {
@@ -99,6 +129,11 @@ export function CargoDrawer({ cargoId, abaInicial = 'geral', atividadeFoco, onCl
                 </div>
               )}
             </div>
+            {dados && (
+              <button onClick={() => onEditarCargo(dados.id)} className="rounded-lg px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50">
+                ✎ Editar
+              </button>
+            )}
             <button onClick={onClose} aria-label="Fechar" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">✕</button>
           </div>
 
@@ -171,7 +206,7 @@ export function CargoDrawer({ cargoId, abaInicial = 'geral', atividadeFoco, onCl
                   <div className="flex items-start justify-between gap-2">
                     <h4 className="text-sm font-semibold text-slate-900">{e.titulo}</h4>
                     <span className="shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-medium text-violet-800">
-                      {FREQ[e.frequencia] ?? e.frequencia}
+                      {FREQUENCIAS[e.frequencia] ?? e.frequencia}
                     </span>
                   </div>
                   {e.kpi_meta && (
@@ -181,10 +216,22 @@ export function CargoDrawer({ cargoId, abaInicial = 'geral', atividadeFoco, onCl
                     onClick={() => setAba('atividades')}
                     className="mt-2 text-xs font-medium text-blue-700 hover:underline"
                   >
-                    {e.atividades.length} atividade(s) →
+                    {e.atividades.length} função(ões) →
                   </button>
                 </article>
               ))}
+              {novoEntregavel ? (
+                <NovoEntregavelForm
+                  onCancelar={() => setNovoEntregavel(false)}
+                  onCriar={async (e) => {
+                    await api.criarEntregavel({ cargo_id: dados.id, ...e });
+                    setNovoEntregavel(false);
+                    aposSalvar();
+                  }}
+                />
+              ) : (
+                <BotaoAdicionar rotulo="Adicionar entregável" onClick={() => setNovoEntregavel(true)} />
+              )}
             </>
           )}
 
@@ -202,11 +249,33 @@ export function CargoDrawer({ cargoId, abaInicial = 'geral', atividadeFoco, onCl
                       focada={a.id === atividadeFoco}
                       onCargo={onNavegarCargo}
                       onPop={onAbrirPop}
+                      onRenomear={renomearFuncao(a.id)}
                     />
                   ))}
+                  {novaFuncaoEm === e.id ? (
+                    <NovaFuncaoForm
+                      cargoAtual={dados}
+                      superior={dados.cadeia_superiores.at(-1) ?? null}
+                      cargos={cargos}
+                      onCriar={criarFuncao(e.id)}
+                      onCancelar={() => setNovaFuncaoEm(null)}
+                    />
+                  ) : (
+                    <BotaoAdicionar rotulo="Adicionar função" onClick={() => setNovaFuncaoEm(e.id)} />
+                  )}
                 </section>
               ))}
-              {atividades.length === 0 && <p className="text-sm text-slate-500">Nenhuma atividade cadastrada.</p>}
+              {dados.entregaveis.length === 0 && (
+                <div className="space-y-2 rounded-xl bg-white p-3 text-sm text-slate-600 ring-1 ring-slate-200">
+                  <p>As funções ficam dentro de um entregável. Crie o primeiro entregável deste cargo para começar.</p>
+                  <button
+                    onClick={() => { setAba('entregaveis'); setNovoEntregavel(true); }}
+                    className="font-medium text-blue-700 hover:underline"
+                  >
+                    + Adicionar entregável
+                  </button>
+                </div>
+              )}
             </>
           )}
 

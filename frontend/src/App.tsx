@@ -6,10 +6,11 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { api } from './api/client';
-import type { Organograma, ResultadoBusca } from './types';
+import type { Departamento, Organograma, OrgNode, ResultadoBusca } from './types';
 import { OrgChart } from './components/OrgChart';
 import { SearchBar } from './components/SearchBar';
 import { CargoDrawer, type Aba } from './components/CargoDrawer';
+import { CargoForm } from './components/CargoForm';
 
 // O modal do POP (com o renderizador de Markdown) só é baixado quando aberto
 const PopModal = lazy(() => import('./components/PopModal').then((m) => ({ default: m.PopModal })));
@@ -23,10 +24,20 @@ export default function App() {
   const [popId, setPopId] = useState<number | null>(null);
   const [destaques, setDestaques] = useState<Set<number>>(new Set());
   const [online, setOnline] = useState(navigator.onLine);
+  // Formulário de cargo aberto: { cargo } edita, { cargo: undefined } cria
+  const [formCargo, setFormCargo] = useState<{ cargo?: OrgNode } | null>(null);
+  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
+  const [versaoDados, setVersaoDados] = useState(0);
+
+  const carregarOrganograma = useCallback(
+    () => api.organograma(1).then(setOrg).catch((e) => setErro(String(e.message ?? e))),
+    [],
+  );
 
   useEffect(() => {
-    api.organograma(1).then(setOrg).catch((e) => setErro(String(e.message ?? e)));
-  }, []);
+    carregarOrganograma();
+    api.departamentos(1).then(setDepartamentos).catch(() => { /* formulário mostra lista vazia */ });
+  }, [carregarOrganograma]);
 
   useEffect(() => {
     const on = () => setOnline(true);
@@ -55,8 +66,21 @@ export default function App() {
             <h1 className="text-sm font-bold text-slate-900">Mapa Organizacional</h1>
             <p className="text-[11px] text-slate-500">Cargos · Entregáveis · Processos · POPs</p>
           </div>
+          {/* No celular o botão fica compacto, na linha do logo */}
+          <button
+            onClick={() => setFormCargo({})}
+            className="ml-auto h-9 rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white md:hidden"
+          >
+            + Cargo
+          </button>
         </div>
         <SearchBar onSelect={onBuscaSelect} onResultados={setDestaques} />
+        <button
+          onClick={() => setFormCargo({})}
+          className="hidden h-11 shrink-0 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 md:block"
+        >
+          + Adicionar cargo
+        </button>
         {!online && (
           <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-medium text-amber-800 md:ml-auto">
             Offline · exibindo dados salvos
@@ -81,6 +105,24 @@ export default function App() {
           onClose={() => setSel(null)}
           onNavegarCargo={abrirCargo}
           onAbrirPop={setPopId}
+          cargos={org?.nodes ?? []}
+          versaoDados={versaoDados}
+          onEditarCargo={(id) => setFormCargo({ cargo: org?.nodes.find((n) => n.id === id) })}
+          onAlterado={carregarOrganograma}
+        />
+      )}
+      {formCargo && org && (
+        <CargoForm
+          cargo={formCargo.cargo}
+          cargos={org.nodes}
+          departamentos={departamentos}
+          onClose={() => setFormCargo(null)}
+          onSalvo={async (id) => {
+            setFormCargo(null);
+            await carregarOrganograma();
+            setVersaoDados((v) => v + 1);
+            abrirCargo(id);
+          }}
         />
       )}
       {popId && (
