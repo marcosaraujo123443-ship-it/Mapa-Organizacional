@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+/* Evita "pull to refresh" e zoom acidental ao arrastar o organograma no mobile */
+body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
