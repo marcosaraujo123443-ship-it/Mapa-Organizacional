@@ -3,6 +3,7 @@
  *  - NomeEditavel: renomear no próprio lugar (Enter salva, Esc cancela)
  *  - NovaFuncaoForm: adicionar uma função (atividade) a um entregável
  *  - NovoEntregavelForm: adicionar um entregável/KPI ao cargo
+ *  - BotaoExcluir: excluir com confirmação no próprio lugar (o viewer não usa confirm())
  */
 import { useState } from 'react';
 import type { CargoRef } from '../types';
@@ -172,5 +173,47 @@ export function NovoEntregavelForm({ onCriar, onCancelar }: NovoEntregavelProps)
         <button disabled={salvando || !titulo.trim()} className={botaoPrimario}>{salvando ? 'Salvando…' : 'Adicionar entregável'}</button>
       </div>
     </form>
+  );
+}
+
+interface ExcluirProps {
+  rotulo: string;                 // ex: "Excluir função"
+  aviso: string;                  // o que será apagado junto
+  onExcluir: () => Promise<void>;
+  compacto?: boolean;             // só o ícone, para dentro de cards
+}
+
+export function BotaoExcluir({ rotulo, aviso, onExcluir, compacto }: ExcluirProps) {
+  const [confirmando, setConfirmando] = useState(false);
+  const { salvando, erro, salvar } = useSalvar();
+
+  if (!confirmando) {
+    return compacto ? (
+      <button onClick={() => setConfirmando(true)} title={rotulo} aria-label={rotulo} className="rounded px-1 text-slate-400 hover:bg-red-50 hover:text-red-600">
+        🗑
+      </button>
+    ) : (
+      <button onClick={() => setConfirmando(true)} className="h-10 rounded-lg px-3 text-sm font-medium text-red-600 hover:bg-red-50">
+        🗑 {rotulo}
+      </button>
+    );
+  }
+
+  return (
+    <div role="alertdialog" className="mt-2 w-full space-y-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+      <p>{aviso}</p>
+      {erro && <p className="text-xs">{erro}</p>}
+      <div className="flex justify-end gap-2">
+        <button onClick={() => setConfirmando(false)} className={botaoSecundario}>Cancelar</button>
+        <button
+          autoFocus
+          disabled={salvando}
+          onClick={() => salvar(onExcluir)}
+          className="h-10 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+        >
+          {salvando ? 'Excluindo…' : 'Sim, excluir'}
+        </button>
+      </div>
+    </div>
   );
 }

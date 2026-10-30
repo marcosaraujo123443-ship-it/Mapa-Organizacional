@@ -3,7 +3,7 @@
  * Cada cargo citado é clicável para navegar até ele no organograma.
  */
 import type { Atividade, CargoRef } from '../types';
-import { NomeEditavel } from './Edicao';
+import { BotaoExcluir, NomeEditavel } from './Edicao';
 
 const PAPEIS = [
   { k: 'R', nome: 'Responsável', cor: 'bg-blue-600 text-white' },
@@ -36,9 +36,10 @@ interface Props {
   onCargo: (id: number) => void;
   onPop: (popId: number) => void;
   onRenomear?: (novoNome: string) => Promise<void>;   // presente = nome editável
+  onExcluir?: () => Promise<void>;                     // presente = mostra a lixeira
 }
 
-export function AtividadeRaci({ atividade: a, cargoAtualId, focada, onCargo, onPop, onRenomear }: Props) {
+export function AtividadeRaci({ atividade: a, cargoAtualId, focada, onCargo, onPop, onRenomear, onExcluir }: Props) {
   const linhas: Record<(typeof PAPEIS)[number]['k'], CargoRef[]> = {
     R: a.raci.responsavel ? [a.raci.responsavel] : [],
     A: a.raci.aprovador ? [a.raci.aprovador] : [],
@@ -50,7 +51,7 @@ export function AtividadeRaci({ atividade: a, cargoAtualId, focada, onCargo, onP
       id={`atividade-${a.id}`}
       className={`rounded-xl border bg-white p-3 ${focada ? 'border-yellow-400 ring-2 ring-yellow-300' : 'border-slate-200'}`}
     >
-      <div className="mb-2 flex items-start justify-between gap-2">
+      <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
         <h4 className="min-w-0 flex-1 text-sm font-semibold text-slate-900">
           {onRenomear ? <NomeEditavel valor={a.nome} onSalvar={onRenomear} /> : a.nome}
         </h4>
@@ -58,6 +59,14 @@ export function AtividadeRaci({ atividade: a, cargoAtualId, focada, onCargo, onP
           <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600" title="Tempo estimado">
             ⏱ {a.tempo_estimado.slice(0, 5)}
           </span>
+        )}
+        {onExcluir && (
+          <BotaoExcluir
+            compacto
+            rotulo="Excluir função"
+            aviso={`Excluir a função "${a.nome}"${a.pops.length ? ` e ${a.pops.length} POP(s) ligado(s) a ela` : ''}? Isso não pode ser desfeito.`}
+            onExcluir={onExcluir}
+          />
         )}
       </div>
 

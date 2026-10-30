@@ -109,6 +109,7 @@ export default function App() {
           versaoDados={versaoDados}
           onEditarCargo={(id) => setFormCargo({ cargo: org?.nodes.find((n) => n.id === id) })}
           onAlterado={carregarOrganograma}
+          onCargoExcluido={() => { setSel(null); setPopId(null); carregarOrganograma(); }}
         />
       )}
       {formCargo && org && (

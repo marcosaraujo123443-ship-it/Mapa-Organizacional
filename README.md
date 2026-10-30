@@ -50,6 +50,9 @@ O schema usa as extensões `pg_trgm` e `unaccent` (vêm no pacote padrão do Pos
 | PATCH  | `/entregaveis/{id}`          | Edita entregável |
 | POST   | `/atividades`                | Cria função: `{ entregavel_id, nome, tempo_estimado?: "HH:MM", raci_responsavel_id?, raci_aprovador_id?, raci_consultado?: [ids], raci_informado?: [ids] }` |
 | PATCH  | `/atividades/{id}`           | Edita função (ex.: `{ "nome": "Novo nome" }`) |
+| DELETE | `/atividades/{id}`           | Exclui a função e os POPs dela |
+| DELETE | `/entregaveis/{id}`          | Exclui o entregável, suas funções e POPs |
+| DELETE | `/cargos/{id}`               | Exclui o cargo com entregáveis, funções e POPs. A equipe direta passa a reportar para o superior dele, e o cargo sai das listas de Consultado/Informado |
 
 Erros de validação voltam como `400 { "erro": "mensagem" }`.
 
@@ -76,7 +79,7 @@ curl "localhost:3333/api/v1/busca?q=divergencia"
 - `components/RaciTable.tsx`: cartão de atividade com R/A/C/I. Cada cargo citado é clicável e navega até ele.
 - `components/PopModal.tsx`: passo a passo em Markdown (com tabelas), checklist interativo com progresso salvo no aparelho e anexos. É carregado sob demanda.
 - `components/CargoForm.tsx`: modal para **adicionar** ou **editar** um cargo (nome, departamento, nível, CBO e a quem reporta). Aberto pelo botão "+ Adicionar cargo" no topo ou por "✎ Editar" no drawer.
-- `components/Edicao.tsx`: formulários dentro do drawer para **adicionar função** (atividade, com R e A), **renomear função** (ícone ✎ ao lado do nome) e **adicionar entregável**.
+- `components/Edicao.tsx`: formulários dentro do drawer para **adicionar função** (atividade, com R e A), **renomear função** (ícone ✎ ao lado do nome), **adicionar entregável** e **excluir** cargo, entregável ou função (🗑, com confirmação que diz o que será apagado junto).
 - `components/SearchBar.tsx`: busca com debounce, destaque do termo e navegação por teclado (`/` foca a busca). Ao escolher um resultado, o drawer abre direto na camada certa (cargo, entregável, atividade ou POP).
 
 ## PWA
@@ -89,6 +92,6 @@ curl "localhost:3333/api/v1/busca?q=divergencia"
 ## Próximos passos sugeridos
 
 1. Autenticação (JWT/SSO) e multiempresa (filtrar por `empresa_id` do usuário).
-2. Exclusão de cargos/funções, edição de POPs e da matriz C/I pela interface.
+2. Edição de POPs e da matriz C/I pela interface; lixeira/histórico para desfazer exclusões.
 3. Upload de anexos (S3/MinIO) e histórico/aprovação de versões de POP.
 4. Busca full-text com `tsvector` (dicionário `portuguese`) quando o volume de POPs crescer.

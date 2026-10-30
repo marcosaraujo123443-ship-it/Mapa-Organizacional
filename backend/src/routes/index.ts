@@ -1,7 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { getHierarquiaCargo, getOrganograma, getPop } from '../services/hierarquia.service.js';
 import { buscar } from '../services/busca.service.js';
-import { criar, editar, ErroValidacao, listarDepartamentos } from '../services/escrita.service.js';
+import { criar, editar, ErroValidacao, excluir, listarDepartamentos } from '../services/escrita.service.js';
 
 export const router = Router();
 
@@ -46,7 +46,7 @@ router.get('/busca', h(async (req, res) => {
 }));
 
 // ---------------------------------------------------------------------------
-// Escrita: cargos, entregáveis e funções (atividades)
+// Escrita: criar, editar e excluir cargos, entregáveis e funções (atividades)
 // ---------------------------------------------------------------------------
 
 router.get('/departamentos', h(async (req, res) => {
@@ -78,5 +78,12 @@ for (const [rota, tabela] of Object.entries(TABELAS)) {
       if (e instanceof ErroValidacao) return res.status(400).json({ erro: e.message });
       throw e;
     }
+  }));
+
+  router.delete(`/${rota}/:id`, h(async (req, res) => {
+    const id = idParam(req.params.id);
+    if (!id) return res.status(400).json({ erro: 'id inválido' });
+    if (!(await excluir(tabela, id))) return res.status(404).json({ erro: 'Registro não encontrado' });
+    res.status(204).end();
   }));
 }

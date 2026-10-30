@@ -4,7 +4,7 @@
  *   GET /api/v1/cargos/:id/hierarquia        -> árvore completa Cargo > Entregável > Atividade > POP
  *   GET /api/v1/pops/:id                     -> POP individual
  *   GET /api/v1/busca?q=termo                -> busca global
- *   POST/PATCH /api/v1/cargos | /entregaveis | /atividades  -> criar e editar
+ *   POST/PATCH/DELETE /api/v1/cargos | /entregaveis | /atividades  -> criar, editar e excluir
  *   GET /api/v1/departamentos?empresa_id=1   -> lista para formulários
  */
 import express from 'express';

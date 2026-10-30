@@ -128,3 +128,39 @@ export async function listarDepartamentos(empresaId: number) {
   const { rows } = await pool.query('SELECT id, nome FROM departamentos WHERE empresa_id = $1 ORDER BY nome', [empresaId]);
   return rows;
 }
+
+/**
+ * Exclusões. Entregáveis, funções e POPs dependentes saem junto (ON DELETE CASCADE).
+ * Ao excluir um cargo:
+ *  - seus subordinados passam a reportar para o superior dele (o organograma não "quebra");
+ *  - ele é removido das listas de Consultado/Informado das funções de outros cargos
+ *    (R e A já viram NULL pela FK ON DELETE SET NULL).
+ */
+export async function excluir(tabela: keyof typeof ESQUEMAS, id: number): Promise<boolean> {
+  const cliente = await pool.connect();
+  try {
+    await cliente.query('BEGIN');
+    if (tabela === 'cargos') {
+      await cliente.query(
+        `UPDATE cargos SET cargo_superior_id = (SELECT cargo_superior_id FROM cargos WHERE id = $1)
+          WHERE cargo_superior_id = $1`,
+        [id],
+      );
+      await cliente.query(
+        `UPDATE atividades
+            SET raci_consultado = array_remove(raci_consultado, $1),
+                raci_informado  = array_remove(raci_informado, $1)
+          WHERE $1 = ANY(raci_consultado) OR $1 = ANY(raci_informado)`,
+        [id],
+      );
+    }
+    const { rowCount } = await cliente.query(`DELETE FROM ${tabela} WHERE id = $1`, [id]);
+    await cliente.query('COMMIT');
+    return (rowCount ?? 0) > 0;
+  } catch (e) {
+    await cliente.query('ROLLBACK');
+    throw e;
+  } finally {
+    cliente.release();
+  }
+}

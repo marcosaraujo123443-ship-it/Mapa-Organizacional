@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { CargoRef, HierarquiaCargo } from '../types';
-import { BotaoAdicionar, FREQUENCIAS, NovaFuncaoForm, NovoEntregavelForm } from './Edicao';
+import { BotaoAdicionar, BotaoExcluir, FREQUENCIAS, NovaFuncaoForm, NovoEntregavelForm } from './Edicao';
 import { NIVEL } from './nivel';
 import { AtividadeRaci, LegendaRaci } from './RaciTable';
 
@@ -33,11 +33,12 @@ interface Props {
   versaoDados: number;              // muda quando o organograma é alterado fora do drawer
   onEditarCargo: (id: number) => void;
   onAlterado: () => void;           // avisa o App para recarregar o organograma
+  onCargoExcluido: () => void;
 }
 
 export function CargoDrawer({
   cargoId, abaInicial = 'geral', atividadeFoco, onClose, onNavegarCargo, onAbrirPop,
-  cargos, versaoDados, onEditarCargo, onAlterado,
+  cargos, versaoDados, onEditarCargo, onAlterado, onCargoExcluido,
 }: Props) {
   const [dados, setDados] = useState<HierarquiaCargo | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -75,6 +76,11 @@ export function CargoDrawer({
 
   const renomearFuncao = (atividadeId: number) => async (nome: string) => {
     await api.editarAtividade(atividadeId, { nome });
+    aposSalvar();
+  };
+
+  const excluirFuncao = (atividadeId: number) => async () => {
+    await api.excluirAtividade(atividadeId);
     aposSalvar();
   };
 
@@ -195,6 +201,20 @@ export function CargoDrawer({
                   </div>
                 ))}
               </section>
+
+              <section className="flex justify-end pt-2">
+                <BotaoExcluir
+                  rotulo="Excluir cargo"
+                  aviso={[
+                    `Excluir o cargo "${dados.titulo}"?`,
+                    dados.entregaveis.length ? `Os ${dados.entregaveis.length} entregável(is), ${atividades.length} função(ões) e os POPs dele também serão apagados.` : '',
+                    dados.subordinados.some((s) => s.profundidade === 1)
+                      ? `A equipe direta passa a reportar para ${dados.cadeia_superiores.at(-1)?.titulo ?? 'o topo do organograma'}.` : '',
+                    'Isso não pode ser desfeito.',
+                  ].filter(Boolean).join(' ')}
+                  onExcluir={async () => { await api.excluirCargo(dados.id); onCargoExcluido(); }}
+                />
+              </section>
             </>
           )}
 
@@ -218,6 +238,14 @@ export function CargoDrawer({
                   >
                     {e.atividades.length} função(ões) →
                   </button>
+                  <div className="flex justify-end">
+                    <BotaoExcluir
+                      compacto
+                      rotulo="Excluir entregável"
+                      aviso={`Excluir o entregável "${e.titulo}"${e.atividades.length ? `, junto com ${e.atividades.length} função(ões) e os POPs delas` : ''}? Isso não pode ser desfeito.`}
+                      onExcluir={async () => { await api.excluirEntregavel(e.id); aposSalvar(); }}
+                    />
+                  </div>
                 </article>
               ))}
               {novoEntregavel ? (
@@ -250,6 +278,7 @@ export function CargoDrawer({
                       onCargo={onNavegarCargo}
                       onPop={onAbrirPop}
                       onRenomear={renomearFuncao(a.id)}
+                      onExcluir={excluirFuncao(a.id)}
                     />
                   ))}
                   {novaFuncaoEm === e.id ? (

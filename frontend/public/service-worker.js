@@ -11,7 +11,7 @@
  *
  * Para publicar uma nova versão, altere VERSAO.
  */
-const VERSAO = 'v1.1.0';
+const VERSAO = 'v1.2.0';
 const CACHE_SHELL = `shell-${VERSAO}`;
 const CACHE_ASSETS = `assets-${VERSAO}`;
 const CACHE_API = 'api-v1'; // mantido entre versões para preservar dados offline

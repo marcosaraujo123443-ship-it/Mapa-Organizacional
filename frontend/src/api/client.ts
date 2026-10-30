@@ -24,6 +24,14 @@ async function enviar<T>(method: 'POST' | 'PATCH', path: string, body: unknown):
   return json;
 }
 
+async function excluir(path: string): Promise<void> {
+  const res = await fetch(BASE + path, { method: 'DELETE' });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.erro ?? `Erro ${res.status} ao excluir`);
+  }
+}
+
 export const api = {
   organograma: (empresaId = 1) => get<Organograma>(`/organograma?empresa_id=${empresaId}`),
   hierarquia: (cargoId: number) => get<HierarquiaCargo>(`/cargos/${cargoId}/hierarquia`),
@@ -37,4 +45,7 @@ export const api = {
   criarEntregavel: (e: NovoEntregavel) => enviar<Pick<Entregavel, 'id' | 'titulo'>>('POST', '/entregaveis', e),
   criarAtividade: (a: NovaAtividade) => enviar<Pick<Atividade, 'id' | 'nome'>>('POST', '/atividades', a),
   editarAtividade: (id: number, a: Partial<NovaAtividade>) => enviar<Pick<Atividade, 'id' | 'nome'>>('PATCH', `/atividades/${id}`, a),
+  excluirCargo: (id: number) => excluir(`/cargos/${id}`),
+  excluirEntregavel: (id: number) => excluir(`/entregaveis/${id}`),
+  excluirAtividade: (id: number) => excluir(`/atividades/${id}`),
 };
