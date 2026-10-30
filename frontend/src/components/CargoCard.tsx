@@ -39,8 +39,9 @@ function CargoCardBase({ data }: NodeProps<CargoFlowNode>) {
         <div className="flex items-center gap-2 text-[11px]">
           <span className={`rounded-full px-2 py-0.5 font-medium ${n.badge}`}>{n.rotulo}</span>
           {data.cbo && <span className="text-slate-400">CBO {data.cbo}</span>}
-          <span className="ml-auto text-slate-500" title="Entregáveis / KPIs">
-            {data.qtd_entregaveis} KPI{data.qtd_entregaveis === 1 ? '' : 's'}
+          <span className="ml-auto flex gap-2 text-slate-500">
+            {data.quadro != null && <span title="Pessoas no cargo">👥 {data.quadro}</span>}
+            <span title="Entregáveis / KPIs">{data.qtd_entregaveis} KPI{data.qtd_entregaveis === 1 ? '' : 's'}</span>
           </span>
         </div>
       </div>

@@ -1,6 +1,6 @@
 /** Cliente HTTP mínimo da API. Em produção, defina VITE_API_URL (ex: https://api.suaempresa.com). */
 import type {
-  Atividade, CargoRef, Departamento, Entregavel, HierarquiaCargo, NovaAtividade, NovoCargo, NovoEntregavel,
+  Atividade, CargoRef, Departamento, Empresa, Entregavel, HierarquiaCargo, NovaAtividade, NovoCargo, NovoEntregavel,
   Organograma, Pop, ResultadoBusca,
 } from '../types';
 
@@ -36,8 +36,10 @@ export const api = {
   organograma: (empresaId = 1) => get<Organograma>(`/organograma?empresa_id=${empresaId}`),
   hierarquia: (cargoId: number) => get<HierarquiaCargo>(`/cargos/${cargoId}/hierarquia`),
   pop: (popId: number) => get<Pop>(`/pops/${popId}`),
-  busca: (q: string, signal?: AbortSignal) =>
-    get<{ q: string; resultados: ResultadoBusca[] }>(`/busca?q=${encodeURIComponent(q)}`, signal),
+  empresas: () => get<Empresa[]>('/empresas'),
+  busca: (q: string, signal?: AbortSignal, empresaId?: number) =>
+    get<{ q: string; resultados: ResultadoBusca[] }>(
+      `/busca?q=${encodeURIComponent(q)}${empresaId ? `&empresa_id=${empresaId}` : ''}`, signal),
   departamentos: (empresaId = 1) => get<Departamento[]>(`/departamentos?empresa_id=${empresaId}`),
 
   criarCargo: (c: NovoCargo) => enviar<CargoRef>('POST', '/cargos', c),

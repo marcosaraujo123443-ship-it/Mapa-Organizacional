@@ -21,11 +21,12 @@ const TIPO: Record<ResultadoBusca['tipo'], { rotulo: string; cor: string }> = {
 };
 
 interface Props {
+  empresaId?: number;                  // limita a busca à filial aberta
   onSelect: (r: ResultadoBusca) => void;
   onResultados: (cargoIds: Set<number>) => void;
 }
 
-export function SearchBar({ onSelect, onResultados }: Props) {
+export function SearchBar({ empresaId, onSelect, onResultados }: Props) {
   const [q, setQ] = useState('');
   const [res, setRes] = useState<ResultadoBusca[]>([]);
   const [aberto, setAberto] = useState(false);
@@ -55,7 +56,7 @@ export function SearchBar({ onSelect, onResultados }: Props) {
     const ctrl = new AbortController();
     const t = setTimeout(() => {
       setCarregando(true);
-      api.busca(termo, ctrl.signal)
+      api.busca(termo, ctrl.signal, empresaId)
         .then(({ resultados }) => {
           setRes(resultados);
           setAtivo(0);
@@ -65,7 +66,7 @@ export function SearchBar({ onSelect, onResultados }: Props) {
         .finally(() => setCarregando(false));
     }, 250);
     return () => { clearTimeout(t); ctrl.abort(); };
-  }, [q, onResultados]);
+  }, [q, onResultados, empresaId]);
 
   const escolher = (r: ResultadoBusca) => {
     setAberto(false);

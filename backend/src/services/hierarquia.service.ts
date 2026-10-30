@@ -62,6 +62,7 @@ SELECT json_build_object(
   'titulo', c.titulo,
   'cbo', c.cbo,
   'nivel', c.nivel,
+  'quadro', c.quadro,
   'empresa', json_build_object('id', e.id, 'nome', e.nome, 'cnpj', e.cnpj),
   'departamento', json_build_object('id', d.id, 'nome', d.nome),
   'cadeia_superiores', COALESCE((
@@ -117,7 +118,7 @@ export async function getHierarquiaCargo(cargoId: number) {
 /** Nós (cargos) e arestas (cargo_superior_id) para desenhar o organograma. */
 export async function getOrganograma(empresaId: number) {
   const { rows } = await pool.query(
-    `SELECT c.id, c.titulo, c.cbo, c.nivel, c.cargo_superior_id,
+    `SELECT c.id, c.titulo, c.cbo, c.nivel, c.cargo_superior_id, c.quadro,
             d.id AS departamento_id, d.nome AS departamento,
             (d.gestor_cargo_id = c.id) AS gestor_departamento,
             (SELECT count(*)::int FROM entregaveis en WHERE en.cargo_id = c.id) AS qtd_entregaveis
@@ -133,6 +134,21 @@ export async function getOrganograma(empresaId: number) {
       .filter((r) => r.cargo_superior_id)
       .map((r) => ({ id: `e${r.cargo_superior_id}-${r.id}`, source: String(r.cargo_superior_id), target: String(r.id) })),
   };
+}
+
+/** Empresas/filiais com totais, para o seletor do app. */
+export async function getEmpresas() {
+  const { rows } = await pool.query(
+    `SELECT e.id, e.nome,
+            count(c.id)::int AS qtd_cargos,
+            coalesce(sum(c.quadro), 0)::int AS quadro
+       FROM empresas e
+       LEFT JOIN departamentos d ON d.empresa_id = e.id
+       LEFT JOIN cargos c ON c.departamento_id = d.id
+      GROUP BY e.id
+      ORDER BY e.id`,
+  );
+  return rows;
 }
 
 export async function getPop(popId: number) {

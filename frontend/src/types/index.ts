@@ -10,6 +10,7 @@ export type OrgNode = {
   cbo: string | null;
   nivel: Nivel;
   cargo_superior_id: number | null;
+  quadro: number | null;           // pessoas no cargo
   departamento_id: number;
   departamento: string;
   gestor_departamento: boolean;
@@ -55,6 +56,7 @@ export interface HierarquiaCargo {
   titulo: string;
   cbo: string | null;
   nivel: Nivel;
+  quadro: number | null;
   empresa: { id: number; nome: string; cnpj: string | null };
   departamento: { id: number; nome: string };
   cadeia_superiores: CargoRef[];
@@ -87,6 +89,9 @@ export interface ResultadoBusca {
 
 export interface Departamento { id: number; nome: string }
 
+/** Empresa ou filial, com totais para o seletor. */
+export interface Empresa { id: number; nome: string; qtd_cargos: number; quadro: number }
+
 /** Corpos aceitos pelas rotas de escrita. */
 export interface NovoCargo {
   departamento_id: number;
@@ -94,6 +99,7 @@ export interface NovoCargo {
   cbo?: string | null;
   nivel: Nivel;
   cargo_superior_id?: number | null;
+  quadro?: number | null;
 }
 
 export interface NovoEntregavel {

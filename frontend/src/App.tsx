@@ -6,7 +6,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { api } from './api/client';
-import type { Departamento, Organograma, OrgNode, ResultadoBusca } from './types';
+import type { Departamento, Empresa, Organograma, OrgNode, ResultadoBusca } from './types';
 import { OrgChart } from './components/OrgChart';
 import { SearchBar } from './components/SearchBar';
 import { CargoDrawer, type Aba } from './components/CargoDrawer';
@@ -16,6 +16,11 @@ import { CargoForm } from './components/CargoForm';
 const PopModal = lazy(() => import('./components/PopModal').then((m) => ({ default: m.PopModal })));
 
 interface Selecao { cargoId: number; aba: Aba; atividadeId: number | null }
+
+// Lembra a última filial aberta neste aparelho
+const CHAVE_EMPRESA = 'mapa-org:empresa';
+const lerEmpresa = () => { try { return Number(localStorage.getItem(CHAVE_EMPRESA)) || null; } catch { return null; } };
+const salvarEmpresa = (id: number) => { try { localStorage.setItem(CHAVE_EMPRESA, String(id)); } catch { /* sem storage */ } };
 
 export default function App() {
   const [org, setOrg] = useState<Organograma | null>(null);
@@ -28,16 +33,44 @@ export default function App() {
   const [formCargo, setFormCargo] = useState<{ cargo?: OrgNode } | null>(null);
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
   const [versaoDados, setVersaoDados] = useState(0);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [empresaId, setEmpresaId] = useState<number | null>(null);
 
-  const carregarOrganograma = useCallback(
-    () => api.organograma(1).then(setOrg).catch((e) => setErro(String(e.message ?? e))),
-    [],
-  );
+  // Escolhe a filial: a última usada neste aparelho, ou a primeira da lista
+  useEffect(() => {
+    api.empresas()
+      .then((lista) => {
+        setEmpresas(lista);
+        const salva = lerEmpresa();
+        setEmpresaId(lista.some((e) => e.id === salva) ? salva : lista[0]?.id ?? null);
+      })
+      .catch((e) => setErro(String(e.message ?? e)));
+  }, []);
+
+  const carregarOrganograma = useCallback(async () => {
+    if (!empresaId) return;
+    try {
+      setOrg(await api.organograma(empresaId));
+      setErro(null);
+    } catch (e) {
+      setErro(String((e as Error).message ?? e));
+    }
+    api.empresas().then(setEmpresas).catch(() => { /* mantém os totais antigos */ });
+  }, [empresaId]);
 
   useEffect(() => {
+    if (!empresaId) return;
+    setOrg(null);
+    setSel(null);
+    setPopId(null);
     carregarOrganograma();
-    api.departamentos(1).then(setDepartamentos).catch(() => { /* formulário mostra lista vazia */ });
-  }, [carregarOrganograma]);
+    api.departamentos(empresaId).then(setDepartamentos).catch(() => { /* formulário mostra lista vazia */ });
+  }, [empresaId, carregarOrganograma]);
+
+  const trocarEmpresa = (id: number) => {
+    salvarEmpresa(id);
+    setEmpresaId(id);
+  };
 
   useEffect(() => {
     const on = () => setOnline(true);
@@ -74,7 +107,22 @@ export default function App() {
             + Cargo
           </button>
         </div>
-        <SearchBar onSelect={onBuscaSelect} onResultados={setDestaques} />
+        {empresas.length > 0 && (
+          <label className="flex items-center gap-2 text-xs font-medium text-slate-500">
+            <span className="shrink-0">Filial</span>
+            <select
+              id="empresa"
+              value={empresaId ?? ''}
+              onChange={(e) => trocarEmpresa(Number(e.target.value))}
+              className="h-11 w-full min-w-0 rounded-xl bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-200 md:w-56"
+            >
+              {empresas.map((e) => (
+                <option key={e.id} value={e.id}>{e.nome} · {e.quadro} pessoas</option>
+              ))}
+            </select>
+          </label>
+        )}
+        <SearchBar empresaId={empresaId ?? undefined} onSelect={onBuscaSelect} onResultados={setDestaques} />
         <button
           onClick={() => setFormCargo({})}
           className="hidden h-11 shrink-0 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 md:block"

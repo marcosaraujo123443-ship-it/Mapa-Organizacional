@@ -1,5 +1,5 @@
 /**
- * Busca global em cargos, entregáveis, atividades e POPs.
+ * Busca global em cargos, entregáveis, atividades e POPs (opcionalmente só de uma filial).
  * - Insensível a acentos e maiúsculas (f_unaccent + ILIKE, acelerado por índices GIN trigram).
  * - Cada resultado traz o cargo_id "dono" para o frontend abrir o drawer no ponto certo.
  * - O destaque (highlight) do termo é feito no frontend; aqui devolvemos um trecho (snippet).
@@ -26,7 +26,8 @@ SELECT * FROM (
          c.id AS cargo_id, NULL::int AS atividade_id,
          similarity(f_unaccent(c.titulo), termo.t) + 0.3 AS score
     FROM cargos c JOIN departamentos d ON d.id = c.departamento_id, termo
-   WHERE f_unaccent(c.titulo) ILIKE termo.padrao OR c.cbo ILIKE termo.padrao
+   WHERE (f_unaccent(c.titulo) ILIKE termo.padrao OR c.cbo ILIKE termo.padrao)
+     AND ($3::int IS NULL OR d.empresa_id = $3)
 
   UNION ALL
   SELECT 'entregavel', en.id, en.titulo, d.nome || ' › ' || c.titulo,
@@ -35,7 +36,8 @@ SELECT * FROM (
     FROM entregaveis en
     JOIN cargos c ON c.id = en.cargo_id
     JOIN departamentos d ON d.id = c.departamento_id, termo
-   WHERE f_unaccent(en.titulo) ILIKE termo.padrao OR f_unaccent(coalesce(en.kpi_meta,'')) ILIKE termo.padrao
+   WHERE (f_unaccent(en.titulo) ILIKE termo.padrao OR f_unaccent(coalesce(en.kpi_meta,'')) ILIKE termo.padrao)
+     AND ($3::int IS NULL OR d.empresa_id = $3)
 
   UNION ALL
   SELECT 'atividade', a.id, a.nome, c.titulo || ' › ' || en.titulo,
@@ -43,8 +45,10 @@ SELECT * FROM (
          similarity(f_unaccent(a.nome), termo.t) + 0.1
     FROM atividades a
     JOIN entregaveis en ON en.id = a.entregavel_id
-    JOIN cargos c ON c.id = en.cargo_id, termo
+    JOIN cargos c ON c.id = en.cargo_id
+    JOIN departamentos d ON d.id = c.departamento_id, termo
    WHERE f_unaccent(a.nome) ILIKE termo.padrao
+     AND ($3::int IS NULL OR d.empresa_id = $3)
 
   UNION ALL
   SELECT 'pop', p.id, p.codigo_pop || ' · ' || p.titulo, c.titulo || ' › ' || a.nome,
@@ -58,19 +62,22 @@ SELECT * FROM (
     FROM pops_passo_a_passo p
     JOIN atividades a ON a.id = p.atividade_id
     JOIN entregaveis en ON en.id = a.entregavel_id
-    JOIN cargos c ON c.id = en.cargo_id, termo
-   WHERE f_unaccent(p.titulo) ILIKE termo.padrao
+    JOIN cargos c ON c.id = en.cargo_id
+    JOIN departamentos d ON d.id = c.departamento_id, termo
+   WHERE (f_unaccent(p.titulo) ILIKE termo.padrao
       OR f_unaccent(p.conteudo_markdown) ILIKE termo.padrao
       OR p.codigo_pop ILIKE termo.padrao
-      OR f_unaccent(p.checklist_json::text) ILIKE termo.padrao
+      OR f_unaccent(p.checklist_json::text) ILIKE termo.padrao)
+     AND ($3::int IS NULL OR d.empresa_id = $3)
 ) r
 ORDER BY score DESC, titulo
 LIMIT $2;
 `;
 
-export async function buscar(q: string, limite: number): Promise<ResultadoBusca[]> {
+/** Busca em todas as empresas/filiais, ou só em `empresaId` quando informado. */
+export async function buscar(q: string, limite: number, empresaId: number | null = null): Promise<ResultadoBusca[]> {
   // Escapa curingas do LIKE digitados pelo usuário
   const termo = q.replace(/[\\%_]/g, (m) => '\\' + m);
-  const { rows } = await pool.query(SQL_BUSCA, [termo, limite]);
+  const { rows } = await pool.query(SQL_BUSCA, [termo, limite, empresaId]);
   return rows;
 }

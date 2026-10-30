@@ -1,9 +1,10 @@
 /**
  * Ponto de entrada da API REST.
+ *   GET /api/v1/empresas                     -> empresas/filiais para o seletor
  *   GET /api/v1/organograma?empresa_id=1     -> nós e arestas para o React Flow
  *   GET /api/v1/cargos/:id/hierarquia        -> árvore completa Cargo > Entregável > Atividade > POP
  *   GET /api/v1/pops/:id                     -> POP individual
- *   GET /api/v1/busca?q=termo                -> busca global
+ *   GET /api/v1/busca?q=termo[&empresa_id=1] -> busca global (ou só de uma filial)
  *   POST/PATCH/DELETE /api/v1/cargos | /entregaveis | /atividades  -> criar, editar e excluir
  *   GET /api/v1/departamentos?empresa_id=1   -> lista para formulários
  */

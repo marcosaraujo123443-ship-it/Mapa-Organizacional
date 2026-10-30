@@ -33,18 +33,32 @@ npm run dev
 ```
 
 Sem Docker: `psql -d mapeamento -f database/01_schema.sql -f database/02_seed.sql`.
+Banco criado antes da coluna `cargos.quadro`? Rode também `database/03_quadro.sql`.
+
+## Importar as filiais da planilha de quadro de pessoal
+
+```bash
+pip install openpyxl
+python scripts/importar_quadro.py QUADRO.xlsx > database/04_filiais.sql
+psql -d mapeamento -f database/04_filiais.sql
+```
+
+O script cria uma **empresa por filial** (a lista vem da aba `FILIAIS`) e, dentro de cada uma, os departamentos e os cargos, com a quantidade de pessoas (`quadro`) e a quem cada cargo reporta. O superior é descoberto pelas colunas *líder imediato / gerente 1 / gerente 2*. Quando a planilha não indica ninguém da mesma filial, o cargo passa a reportar ao gestor do próprio departamento. As regras que decidem em qual filial cada linha entra ficam no topo do script, em `REGRAS_SECAO`, `REGRAS_PALAVRA` e `REGRAS_CODIGO`.
+
+O SQL gerado **não tem dados pessoais** (nomes, nascimento, idade, sexo). Mesmo assim, a planilha e o `04_filiais.sql` estão no `.gitignore`: a estrutura da empresa não deve ir para um repositório público.
 O schema usa as extensões `pg_trgm` e `unaccent` (vêm no pacote padrão do PostgreSQL).
 
 ## Endpoints (`/api/v1`)
 
 | Método | Rota                         | Descrição |
 |--------|------------------------------|-----------|
+| GET    | `/empresas`                  | Empresas/filiais com total de cargos e de pessoas (seletor de filial) |
 | GET    | `/organograma?empresa_id=1`  | Nós (cargos) e arestas (`cargo_superior_id`) para o React Flow |
 | GET    | `/cargos/{id}/hierarquia`    | Árvore completa do cargo: empresa, departamento, cadeia de superiores (CTE recursiva), subordinados (CTE recursiva), entregáveis → atividades com RACI resolvida → POPs, e participações do cargo na RACI de outros cargos |
 | GET    | `/pops/{id}`                 | POP completo (markdown, checklist, anexos) |
-| GET    | `/busca?q={termo}&limite=30` | Busca global em cargos, entregáveis/KPIs, atividades e POPs (sem acento, sem maiúsculas, com trecho do POP onde o termo aparece) |
+| GET    | `/busca?q={termo}&limite=30&empresa_id=` | Busca global (com `empresa_id`, só naquela filial) em cargos, entregáveis/KPIs, atividades e POPs (sem acento, sem maiúsculas, com trecho do POP onde o termo aparece) |
 | GET    | `/departamentos?empresa_id=1`| Lista de departamentos (usada nos formulários) |
-| POST   | `/cargos`                    | Cria cargo: `{ departamento_id, titulo, nivel, cbo?, cargo_superior_id? }` |
+| POST   | `/cargos`                    | Cria cargo: `{ departamento_id, titulo, nivel, cbo?, cargo_superior_id?, quadro? }` |
 | PATCH  | `/cargos/{id}`               | Edita qualquer campo acima. Bloqueia reportar para um subordinado (ciclo) |
 | POST   | `/entregaveis`               | Cria entregável: `{ cargo_id, titulo, frequencia, kpi_meta? }` |
 | PATCH  | `/entregaveis/{id}`          | Edita entregável |

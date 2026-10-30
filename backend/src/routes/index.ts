@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
-import { getHierarquiaCargo, getOrganograma, getPop } from '../services/hierarquia.service.js';
+import { getEmpresas, getHierarquiaCargo, getOrganograma, getPop } from '../services/hierarquia.service.js';
 import { buscar } from '../services/busca.service.js';
 import { criar, editar, ErroValidacao, excluir, listarDepartamentos } from '../services/escrita.service.js';
 
@@ -15,6 +15,10 @@ const idParam = (v: unknown) => {
   const n = Number(v);
   return Number.isInteger(n) && n > 0 ? n : null;
 };
+
+router.get('/empresas', h(async (_req, res) => {
+  res.json(await getEmpresas());
+}));
 
 router.get('/organograma', h(async (req, res) => {
   const empresaId = idParam(req.query.empresa_id ?? 1);
@@ -42,7 +46,8 @@ router.get('/busca', h(async (req, res) => {
   const q = String(req.query.q ?? '').trim();
   if (q.length < 2) return res.status(400).json({ erro: 'Informe ao menos 2 caracteres em q' });
   const limite = Math.min(Number(req.query.limite) || 30, 100);
-  res.json({ q, resultados: await buscar(q, limite) });
+  const empresaId = req.query.empresa_id ? idParam(req.query.empresa_id) : null;
+  res.json({ q, resultados: await buscar(q, limite, empresaId) });
 }));
 
 // ---------------------------------------------------------------------------

@@ -132,6 +132,7 @@ export function CargoDrawer({
                 <div className="mt-1 flex items-center gap-2 text-xs">
                   <span className={`rounded-full px-2 py-0.5 font-medium ${NIVEL[dados.nivel].badge}`}>{NIVEL[dados.nivel].rotulo}</span>
                   {dados.cbo && <span className="text-slate-500">CBO {dados.cbo}</span>}
+                  {dados.quadro != null && <span className="text-slate-500">👥 {dados.quadro} pessoa{dados.quadro === 1 ? '' : 's'}</span>}
                 </div>
               )}
             </div>

@@ -14,6 +14,7 @@ type Campo = { tipo: 'texto'; max: number; obrigatorio?: boolean }
   | { tipo: 'id'; obrigatorio?: boolean }
   | { tipo: 'enum'; valores: readonly string[] }
   | { tipo: 'intervalo' }
+  | { tipo: 'inteiro' }
   | { tipo: 'ids' };
 
 const ESQUEMAS: Record<'cargos' | 'entregaveis' | 'atividades', Record<string, Campo>> = {
@@ -23,6 +24,7 @@ const ESQUEMAS: Record<'cargos' | 'entregaveis' | 'atividades', Record<string, C
     cbo: { tipo: 'texto', max: 10 },
     nivel: { tipo: 'enum', valores: NIVEIS },
     cargo_superior_id: { tipo: 'id' },
+    quadro: { tipo: 'inteiro' },
   },
   entregaveis: {
     cargo_id: { tipo: 'id', obrigatorio: true },
@@ -71,6 +73,9 @@ function validar(tabela: keyof typeof ESQUEMAS, corpo: Record<string, unknown>, 
         break;
       case 'intervalo':
         if (typeof v !== 'string' || !/^\d{1,3}:[0-5]\d(:[0-5]\d)?$/.test(v)) throw new ErroValidacao(`${nome} deve estar no formato HH:MM`);
+        break;
+      case 'inteiro':
+        if (!Number.isInteger(v) || (v as number) < 0) throw new ErroValidacao(`${nome} deve ser um número inteiro ≥ 0`);
         break;
       case 'ids':
         if (!Array.isArray(v) || !v.every((x) => Number.isInteger(x) && x > 0)) throw new ErroValidacao(`${nome} deve ser uma lista de ids`);

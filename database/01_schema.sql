@@ -52,6 +52,8 @@ CREATE TABLE cargos (
     cbo                VARCHAR(10),                       -- Classificação Brasileira de Ocupações (ex: 4141-05)
     nivel              nivel_cargo NOT NULL DEFAULT 'operacional',
     cargo_superior_id  INT REFERENCES cargos(id) ON DELETE SET NULL,
+    quadro             INT,                               -- quantidade de pessoas no cargo (headcount)
+    CONSTRAINT ck_cargos_quadro CHECK (quadro IS NULL OR quadro >= 0),
     CONSTRAINT ck_cargos_nao_auto_superior CHECK (cargo_superior_id IS NULL OR cargo_superior_id <> id)
 );
 CREATE INDEX ix_cargos_departamento ON cargos(departamento_id);

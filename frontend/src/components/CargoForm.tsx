@@ -21,6 +21,7 @@ export function CargoForm({ cargo, cargos, departamentos, onSalvo, onClose }: Pr
   const [nivel, setNivel] = useState<Nivel>(cargo?.nivel ?? 'operacional');
   const [cbo, setCbo] = useState(cargo?.cbo ?? '');
   const [superiorId, setSuperiorId] = useState<number | ''>(cargo?.cargo_superior_id ?? '');
+  const [quadro, setQuadro] = useState(cargo?.quadro != null ? String(cargo.quadro) : '');
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
@@ -53,6 +54,7 @@ export function CargoForm({ cargo, cargos, departamentos, onSalvo, onClose }: Pr
       nivel,
       cbo: cbo || null,
       cargo_superior_id: superiorId === '' ? null : superiorId,
+      quadro: quadro === '' ? null : Number(quadro),
     };
     try {
       const salvo = cargo ? await api.editarCargo(cargo.id, dados) : await api.criarCargo(dados);
@@ -97,7 +99,7 @@ export function CargoForm({ cargo, cargos, departamentos, onSalvo, onClose }: Pr
           </label>
         </div>
 
-        <div className="grid grid-cols-[1fr_7rem] gap-3">
+        <div className="grid grid-cols-[1fr_6rem_6rem] gap-3">
           <label className="block text-sm font-medium text-slate-700">
             Reporta para
             <select id="cargo-superior" value={superiorId} onChange={(e) => setSuperiorId(e.target.value ? Number(e.target.value) : '')} className={campo}>
@@ -108,6 +110,10 @@ export function CargoForm({ cargo, cargos, departamentos, onSalvo, onClose }: Pr
           <label className="block text-sm font-medium text-slate-700">
             CBO
             <input id="cargo-cbo" maxLength={10} value={cbo} onChange={(e) => setCbo(e.target.value)} className={campo} placeholder="0000-00" />
+          </label>
+          <label className="block text-sm font-medium text-slate-700">
+            Pessoas
+            <input id="cargo-quadro" type="number" min={0} step={1} inputMode="numeric" value={quadro} onChange={(e) => setQuadro(e.target.value)} className={campo} placeholder="0" />
           </label>
         </div>
 
