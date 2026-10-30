@@ -33,7 +33,7 @@ npm run dev
 ```
 
 Sem Docker: `psql -d mapeamento -f database/01_schema.sql -f database/02_seed.sql`.
-Banco criado antes da coluna `cargos.quadro`? Rode também `database/03_quadro.sql`.
+Banco criado antes das colunas `cargos.quadro` e `empresas.grupo`? Rode também `database/03_quadro.sql`.
 
 ## Importar as filiais da planilha de quadro de pessoal
 
@@ -43,7 +43,7 @@ python scripts/importar_quadro.py QUADRO.xlsx > database/04_filiais.sql
 psql -d mapeamento -f database/04_filiais.sql
 ```
 
-O script cria uma **empresa por filial** (a lista vem da aba `FILIAIS`) e, dentro de cada uma, os departamentos e os cargos, com a quantidade de pessoas (`quadro`) e a quem cada cargo reporta. O superior é descoberto pelas colunas *líder imediato / gerente 1 / gerente 2*. Quando a planilha não indica ninguém da mesma filial, o cargo passa a reportar ao gestor do próprio departamento. As regras que decidem em qual filial cada linha entra ficam no topo do script, em `REGRAS_SECAO`, `REGRAS_PALAVRA` e `REGRAS_CODIGO`.
+O script cria uma **empresa por filial**, todas no grupo informado (padrão `"Grupo JC"`, que é a raiz da árvore no app), (a lista vem da aba `FILIAIS`) e, dentro de cada uma, os departamentos e os cargos, com a quantidade de pessoas (`quadro`) e a quem cada cargo reporta. O superior é descoberto pelas colunas *líder imediato / gerente 1 / gerente 2*. Quando a planilha não indica ninguém da mesma filial, o cargo passa a reportar ao gestor do próprio departamento. As regras que decidem em qual filial cada linha entra ficam no topo do script, em `REGRAS_SECAO`, `REGRAS_PALAVRA` e `REGRAS_CODIGO`.
 
 O SQL gerado **não tem dados pessoais** (nomes, nascimento, idade, sexo). Mesmo assim, a planilha e o `04_filiais.sql` estão no `.gitignore`: a estrutura da empresa não deve ir para um repositório público.
 O schema usa as extensões `pg_trgm` e `unaccent` (vêm no pacote padrão do PostgreSQL).
@@ -52,7 +52,7 @@ O schema usa as extensões `pg_trgm` e `unaccent` (vêm no pacote padrão do Pos
 
 | Método | Rota                         | Descrição |
 |--------|------------------------------|-----------|
-| GET    | `/empresas`                  | Empresas/filiais com total de cargos e de pessoas (seletor de filial) |
+| GET    | `/empresas`                  | Empresas/filiais com grupo, total de cargos e de pessoas (níveis de cima da árvore) |
 | GET    | `/organograma?empresa_id=1`  | Nós (cargos) e arestas (`cargo_superior_id`) para o React Flow |
 | GET    | `/cargos/{id}/hierarquia`    | Árvore completa do cargo: empresa, departamento, cadeia de superiores (CTE recursiva), subordinados (CTE recursiva), entregáveis → atividades com RACI resolvida → POPs, e participações do cargo na RACI de outros cargos |
 | GET    | `/pops/{id}`                 | POP completo (markdown, checklist, anexos) |
@@ -87,7 +87,8 @@ curl "localhost:3333/api/v1/busca?q=divergencia"
 
 ## Frontend
 
-- `components/OrgChart.tsx`: organograma com layout automático em árvore (dagre). Cards clicáveis; resultados da busca ficam destacados e o restante esmaecido.
+- `components/OrgChart.tsx`: organograma em **árvore que abre por cliques**, da esquerda para a direita (React Flow + dagre): **Grupo › Empresas › Áreas › Funções (cargos)**. Só os níveis abertos são desenhados, e cada empresa é carregada da API quando é aberta. Dentro de uma área, os cargos seguem a hierarquia entre eles. A busca abre a árvore até o cargo encontrado.
+- `components/TreeNodes.tsx`: cards do grupo, da empresa e da área, com totais de pessoas e funções. O "+" da área cria um cargo direto nela.
 - `components/CargoCard.tsx`: nó customizado (departamento, título, nível, CBO, qtd. de KPIs).
 - `components/CargoDrawer.tsx`: gaveta de drill-down com as abas *Visão geral*, *Entregáveis*, *Atividades (RACI)* e *Participações*. No desktop fica à direita, com o organograma navegável ao fundo; no celular vira um *bottom sheet*.
 - `components/RaciTable.tsx`: cartão de atividade com R/A/C/I. Cada cargo citado é clicável e navega até ele.

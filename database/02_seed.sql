@@ -7,8 +7,8 @@
 BEGIN;
 
 -- 1. EMPRESA ------------------------------------------------------------------
-INSERT INTO empresas (id, nome, cnpj) VALUES
-  (1, 'Grupo Exemplo S/A - Matriz', '11222333000181');
+INSERT INTO empresas (id, nome, cnpj, grupo) VALUES
+  (1, 'Grupo Exemplo S/A - Matriz', '11222333000181', 'Grupo Exemplo');
 
 -- 2. DEPARTAMENTOS (gestor definido após criar os cargos) ---------------------
 INSERT INTO departamentos (id, empresa_id, nome) VALUES

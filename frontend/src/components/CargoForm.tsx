@@ -9,15 +9,16 @@ import { NIVEL } from './nivel';
 
 interface Props {
   cargo?: OrgNode;              // ausente = criar
+  departamentoInicial?: number; // ao criar a partir do "+" de uma área
   cargos: OrgNode[];
   departamentos: Departamento[];
   onSalvo: (cargoId: number) => void;
   onClose: () => void;
 }
 
-export function CargoForm({ cargo, cargos, departamentos, onSalvo, onClose }: Props) {
+export function CargoForm({ cargo, departamentoInicial, cargos, departamentos, onSalvo, onClose }: Props) {
   const [titulo, setTitulo] = useState(cargo?.titulo ?? '');
-  const [departamentoId, setDepartamentoId] = useState(cargo?.departamento_id ?? departamentos[0]?.id ?? 0);
+  const [departamentoId, setDepartamentoId] = useState(cargo?.departamento_id ?? departamentoInicial ?? departamentos[0]?.id ?? 0);
   const [nivel, setNivel] = useState<Nivel>(cargo?.nivel ?? 'operacional');
   const [cbo, setCbo] = useState(cargo?.cbo ?? '');
   const [superiorId, setSuperiorId] = useState<number | ''>(cargo?.cargo_superior_id ?? '');

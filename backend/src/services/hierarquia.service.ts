@@ -136,10 +136,10 @@ export async function getOrganograma(empresaId: number) {
   };
 }
 
-/** Empresas/filiais com totais, para o seletor do app. */
+/** Empresas/filiais com totais e o grupo a que pertencem (raiz da árvore do app). */
 export async function getEmpresas() {
   const { rows } = await pool.query(
-    `SELECT e.id, e.nome,
+    `SELECT e.id, e.nome, coalesce(e.grupo, e.nome) AS grupo,
             count(c.id)::int AS qtd_cargos,
             coalesce(sum(c.quadro), 0)::int AS quadro
        FROM empresas e

@@ -6,7 +6,7 @@ quantidade de pessoas por cargo e a linha de reporte entre cargos.
 
 Uso:
     pip install openpyxl
-    python scripts/importar_quadro.py QUADRO.xlsx > database/04_filiais.sql
+    python scripts/importar_quadro.py QUADRO.xlsx ["Grupo JC"] > database/04_filiais.sql
     psql -d mapeamento -f database/04_filiais.sql
 
 Privacidade: o SQL gerado NÃO contém nomes, datas de nascimento, idade ou sexo.
@@ -138,7 +138,7 @@ def q(s):  # literal SQL
     return 'NULL' if s is None else "'" + str(s).replace("'", "''") + "'"
 
 
-def main(caminho: str):
+def main(caminho: str, grupo: str = 'Grupo JC'):
     wb = openpyxl.load_workbook(caminho, data_only=True, read_only=True)
     linhas = list(wb['QUADRO'].iter_rows(values_only=True))
     cab = linhas[0]
@@ -199,8 +199,8 @@ def main(caminho: str):
             atual = superior[atual]
 
     out = ['-- Gerado por scripts/importar_quadro.py. Não contém dados pessoais.', 'BEGIN;', '']
-    out.append('INSERT INTO empresas (id, nome) VALUES')
-    out.append(',\n'.join(f"  ({id_empresa[f]}, {q(NOMES_FILIAL.get(f, f))})" for f in filiais) + ';')
+    out.append('INSERT INTO empresas (id, nome, grupo) VALUES')
+    out.append(',\n'.join(f"  ({id_empresa[f]}, {q(NOMES_FILIAL.get(f, f))}, {q(grupo)})" for f in filiais) + ';')
     out.append('\nINSERT INTO departamentos (id, empresa_id, nome) VALUES')
     out.append(',\n'.join(f"  ({id_depto[d]}, {id_empresa[d[0]]}, {q(d[1])})" for d in deptos) + ';')
     out.append('\nINSERT INTO cargos (id, departamento_id, titulo, nivel, cargo_superior_id, quadro) VALUES')
@@ -227,4 +227,4 @@ def main(caminho: str):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1])
+    main(*sys.argv[1:3])

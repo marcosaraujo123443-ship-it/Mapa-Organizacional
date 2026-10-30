@@ -21,6 +21,7 @@ CREATE TABLE empresas (
     id          SERIAL PRIMARY KEY,
     nome        VARCHAR(200) NOT NULL,
     cnpj        CHAR(14) UNIQUE,                         -- apenas dígitos
+    grupo       VARCHAR(150),                            -- grupo econômico (ex: "Grupo JC"); raiz da árvore
     criado_em   TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT ck_empresas_cnpj CHECK (cnpj IS NULL OR cnpj ~ '^[0-9]{14}$')
 );

@@ -90,7 +90,7 @@ export interface ResultadoBusca {
 export interface Departamento { id: number; nome: string }
 
 /** Empresa ou filial, com totais para o seletor. */
-export interface Empresa { id: number; nome: string; qtd_cargos: number; quadro: number }
+export interface Empresa { id: number; nome: string; grupo: string; qtd_cargos: number; quadro: number }
 
 /** Corpos aceitos pelas rotas de escrita. */
 export interface NovoCargo {

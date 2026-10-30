@@ -24,8 +24,8 @@ function CargoCardBase({ data }: NodeProps<CargoFlowNode>) {
         data.esmaecido ? 'opacity-40' : '',
       ].join(' ')}
     >
-      {/* Conexões invisíveis: superior em cima, subordinados embaixo */}
-      <Handle type="target" position={Position.Top} className="!h-1 !w-1 !border-0 !bg-transparent" />
+      {/* Conexões invisíveis: quem está acima à esquerda, subordinados à direita */}
+      <Handle type="target" position={Position.Left} className="!h-1 !w-1 !border-0 !bg-transparent" />
 
       <div className={`w-1.5 shrink-0 ${n.faixa}`} />
       <div className="flex min-w-0 flex-1 flex-col justify-between p-3">
@@ -46,7 +46,7 @@ function CargoCardBase({ data }: NodeProps<CargoFlowNode>) {
         </div>
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="!h-1 !w-1 !border-0 !bg-transparent" />
+      <Handle type="source" position={Position.Right} className="!h-1 !w-1 !border-0 !bg-transparent" />
     </div>
   );
 }
